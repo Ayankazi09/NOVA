@@ -224,3 +224,32 @@ body { background: var(--workspace); }
 .ask-title { display: inline-flex; align-items: center; gap: 8px; }
 .ask-mark { width: 22px; height: 22px; }
 @media (max-width: 699px) { .brand-logo { height: 28px; } }
+
+/* ---- phones and tablets */
+.page-count { white-space: nowrap; }
+.phone .topbar { gap: 4px; }
+.phone .title-input { min-width: 0; flex: 1 1 auto; width: auto; font-size: 17px; padding: 4px 6px; }
+.phone .assist-toggle { height: 32px; padding: 0 10px; font-size: 13px; flex: none; }
+.phone .dock { height: 60px; }
+.phone .dock .tool-btn { min-width: 48px; }
+/* tablets: the full toolbar scrolls sideways instead of pushing Ask NOVA off the screen */
+.tablet .toolbar { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.tablet .toolbar::-webkit-scrollbar { display: none; }
+.tablet .toolbar .tool-label { display: none; }
+.tablet .toolbar > * { flex: none; }
+@media (max-width: 699px) {
+  .library .topbar { gap: 6px; padding: 0 10px; }
+  .library .topbar .title-static { display: none; }
+  .library .topbar .btn { height: 38px; padding: 0 10px; font-size: 14px; white-space: nowrap; }
+  .library .brand-logo { height: 30px; }
+  .lc-sheet { max-width: 160px; }
+  .lib-continue { grid-template-columns: 120px 1fr; align-items: start; }
+  .lc-lines li { font-size: 15px; }
+  .lc-stats span { font-size: 13px; }
+  .btn.big { height: 44px; font-size: 16px; padding: 0 16px; }
+  .ask-panel { left: 0 !important; right: 0 !important; width: auto !important; max-width: none !important; }
+}
+.tablet .toolbar .zoom { display: none; }
+.tablet .toolbar { gap: 0; padding: 0 6px; }
+.tablet .toolbar .icon-btn, .tablet .toolbar .tool-btn { min-width: 44px; padding: 0 6px; }
+.tablet .ask-btn { padding: 0 12px; }

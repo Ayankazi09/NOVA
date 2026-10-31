@@ -38,6 +38,7 @@ _CTRL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 
 # Two independent reads; disagreement becomes a clarification question instead of a silent guess.
 RECOGNIZE_VOTES = max(1, min(3, int(os.environ.get("NOVA_RECOGNIZE_VOTES", "2"))))
+RECOGNIZE_GRACE_S = float(os.environ.get("NOVA_RECOGNIZE_GRACE_S", "3"))  # extra wait for the second vote
 RECOGNIZE_EFFORT = os.environ.get("NOVA_RECOGNIZE_EFFORT", "") or None  # e.g. "low" to let the model reason
 
 
@@ -136,7 +137,18 @@ async def recognize(req: RecognizeRequest) -> RecognizeResponse:
         problem_hint = "The second image is the selected problem, for context only; do NOT transcribe it and do NOT use it to correct the first image. "
     user = RECOGNIZE_USER.format(problem_hint=problem_hint, w=req.regionWidth, h=req.regionHeight)
     temps = [0.0, 0.7, 0.4][:RECOGNIZE_VOTES]
-    results = await asyncio.gather(*[_read_once(images, user, rid, t) for t in temps], return_exceptions=True)
+    # Don't make the student wait for the slowest vote: once one reading is back, the others get a short grace.
+    tasks = [asyncio.ensure_future(_read_once(images, user, rid, t)) for t in temps]
+    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+    while pending and not any(t.exception() is None for t in done):
+        more, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+        done |= more
+    if pending:
+        more, pending = await asyncio.wait(pending, timeout=RECOGNIZE_GRACE_S)
+        done |= more
+        for t in pending:
+            t.cancel()
+    results = [t.exception() if t.exception() is not None else t.result() for t in tasks if t in done]
     ok = [r for r in results if isinstance(r, dict)]
     if not ok:
         err = results[0]

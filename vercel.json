@@ -6,13 +6,22 @@
   "outputDirectory": "web/dist",
   "functions": {
     "api/index.py": {
-      "maxDuration": 300,
+      "maxDuration": 120,
       "memory": 2048,
       "excludeFiles": "{web/**,tests/**,qa-work/**,docs/**,prompts/**,scripts/**,server/models/**,server/tests/**,server/.venv/**,server/.env,Issues screenshot/**,*.pdf}"
     }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index" },
-    { "source": "/((?!api/|assets/).*)", "destination": "/index.html" }
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/((?!api/|assets/).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "regions": [
+    "bom1"
   ]
 }

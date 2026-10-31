@@ -94,6 +94,7 @@ export function composeExplained(
   origin: { x: number; y: number },
   style: HandStyle,
   lib?: GlyphLibrary,
+  maxW?: number, // narrow screens: a note that would run off the edge goes under its step
 ): Explained {
   const h = style.height
   const stepStyle = (i: number): HandStyle => ({ ...style, seed: style.seed + i * 7 })
@@ -128,16 +129,19 @@ export function composeExplained(
     lines.push({ x: origin.x, top: top + c.top, bottom: top + c.bottom, base: top + h, text: steps[i], style: st, width: c.width })
     // a short note in grey to the right of the line
     const note = notes[i] && notes[i] !== 'answer' ? notes[i] : ''
+    let extra = 0 // room taken by a note written under the step
     if (note) {
       const nc = compose(note, noteStyle(i), lib)
-      const nx = origin.x + c.width + h * 1.1
-      const ny = top + h * 0.55 - (nc.bottom + nc.top) / 2
+      const under = !!maxW && c.width + h * 1.1 + nc.width > maxW
+      const nx = under ? origin.x + h * 0.15 : origin.x + c.width + h * 1.1
+      const ny = under ? top + c.bottom + h * 0.12 - nc.top : top + h * 0.55 - (nc.bottom + nc.top) / 2
+      if (under) extra = nc.bottom - nc.top + h * 0.2
       for (const s of nc.strokes) {
         noteStrokes.push(s.map(([a, b]) => [a + nx, b + ny] as [number, number]))
         noteColors.push(mv ? MOVE_RED : NOTE_GREY)
       }
     }
-    y = top + c.bottom + h * 0.75
+    y = top + c.bottom + h * 0.75 + extra
   }
   // arrows: from the term in the line above to where it lands in this line
   for (let i = 0; i < steps.length; i++) {

@@ -100,9 +100,16 @@ def _map_status(resp: httpx.Response, request_id: str | None) -> ApiError:
 class BharatCodeClient:
     def __init__(self) -> None:
         self._client: httpx.AsyncClient | None = None
+        self._loop: object | None = None
 
     def _http(self) -> httpx.AsyncClient:
-        if self._client is None:
+        # Serverless hosts may run each request on a fresh event loop; a pooled connection made on an
+        # earlier loop then hangs until the timeout. Keep one client per running loop.
+        import asyncio
+
+        loop = asyncio.get_running_loop()
+        if self._client is None or self._loop is not loop:
+            self._loop = loop
             self._client = httpx.AsyncClient(
                 base_url=settings.base_url,
                 timeout=httpx.Timeout(settings.provider_timeout_s, connect=10),

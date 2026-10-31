@@ -147,7 +147,7 @@ export function NotebookScreen({ state, dispatch, settings, setSettings, saveSta
       return
     }
     if (isInfinite(page)) {
-      setView({ scale: phone ? 0.7 : 1, tx: 0, ty: 0 })
+      setView({ scale: 1, tx: 0, ty: 0 }) // phones too: zooming out makes finger writing huge in page terms
       return
     }
     const scale = Math.min(2, (size.w - (phone ? 16 : 48)) / page.width)
@@ -513,10 +513,16 @@ export function NotebookScreen({ state, dispatch, settings, setSettings, saveSta
           {saveStatus === 'error' ? (
             <button className="badge bad" onClick={onRetrySave} title={saveError ?? ''}>Not saved · Retry</button>
           ) : (
-            <span className="save-status">{saveLabel}</span>
+            !phone && <span className="save-status">{saveLabel}</span>
+          )}
+          {phone && (
+            // on a phone Assist must be one tap away: without it NOVA never reads what you write
+            <button className={`assist-toggle ${settings.assist ? 'on' : ''}`} onClick={toggleAssist} aria-pressed={settings.assist}>
+              Assist {settings.assist ? 'on' : 'off'}
+            </button>
           )}
           {!phone && <span className="sep">|</span>}
-          <button className="page-count" onClick={() => setPagesOpen((v) => !v)}>Page {pageIndex + 1} of {nb.orderedPageIds.length}</button>
+          <button className="page-count" onClick={() => setPagesOpen((v) => !v)} aria-label={`Page ${pageIndex + 1} of ${nb.orderedPageIds.length}`}>{phone ? `${pageIndex + 1}/${nb.orderedPageIds.length}` : `Page ${pageIndex + 1} of ${nb.orderedPageIds.length}`}</button>
           <div className="anchor-rel">
             <button className="icon-btn" aria-label="More" onClick={(e) => { e.stopPropagation(); setMenu(menu === 'overflow' ? null : 'overflow') }}><Icon.more /></button>
             {menu === 'overflow' && overflowPopover}

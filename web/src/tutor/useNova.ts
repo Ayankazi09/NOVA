@@ -162,9 +162,10 @@ export function useNova(o: Options) {
         const notes = res.steps.map((_, i) => res.notes?.[i] ?? '')
         const src = { text, bounds: cur.bounds }
         const gap = style.height * 0.6 // room for the first arrow under the student's line
-        const probe = composeExplained(res.steps, notes, moves, src, { x: 0, y: 0 }, st, getLibrary())
+        const narrow = window.innerWidth < 700 ? window.innerWidth - 90 : undefined // phone: keep the notes on screen
+        const probe = composeExplained(res.steps, notes, moves, { text: '', bounds: src.bounds }, { x: 0, y: 0 }, st, getLibrary(), narrow) // size only: no arrow back to the line
         const pos = placeBlock(others, probe.bounds.w, probe.bounds.h + gap, cur.bounds, 'below')
-        const out = composeExplained(res.steps, notes, moves, src, { x: pos.x, y: pos.y + gap }, st, getLibrary())
+        const out = composeExplained(res.steps, notes, moves, src, { x: pos.x, y: pos.y + gap }, st, getLibrary(), narrow)
         strokes = out.strokes
         colors = out.colors
         if (out.notes.strokes.length) {

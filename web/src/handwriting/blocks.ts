@@ -130,10 +130,24 @@ export function placeBlock(page: Page, w: number, h: number, near?: Rect, prefer
     }
   }
   if (near) {
+    const lx = Math.max(24, near.x) // a line written right at the left edge still gets its working underneath
     const right = [near.x + near.w + 60, near.y] as const
-    const below = [near.x, near.y + near.h + 52] as const // under the line and its reading label
-    for (const [x, y] of prefer === 'below' ? [below, right] : [right, below]) if (fits(x, y)) return { x, y }
-    for (let dy = 76; dy < 600; dy += 24) if (fits(near.x, near.y + near.h + dy)) return { x: near.x, y: near.y + near.h + dy }
+    const below = [lx, near.y + near.h + 52] as const // under the line and its reading label
+    const downwards = () => {
+      for (let dy = 76; dy < 600; dy += 24) if (fits(lx, near.y + near.h + dy)) return { x: lx, y: near.y + near.h + dy }
+      return null
+    }
+    if (prefer === 'below') {
+      // worked solutions read top to bottom (and stay on a phone screen): go further down before going sideways
+      if (fits(...below)) return { x: below[0], y: below[1] }
+      const d = downwards()
+      if (d) return d
+      if (fits(...right)) return { x: right[0], y: right[1] }
+    } else {
+      for (const [x, y] of [right, below]) if (fits(x, y)) return { x, y }
+      const d = downwards()
+      if (d) return d
+    }
   }
   for (let y = 48; y + h <= page.height - 24; y += 24) for (let x = 48; x + w <= Math.max(page.width, 1200) - 24; x += 48) if (fits(x, y)) return { x, y }
   const lowest = Math.max(0, ...obstacles.map((o) => o.y + o.h))
