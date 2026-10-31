@@ -58,7 +58,8 @@ export default function App() {
       try {
         void loadLibrary()
         const s = await getMeta<AppSettings>('settings')
-        if (s) setSettingsState({ ...DEFAULT_SETTINGS, ...s })
+        // older saved settings started with Assist off: switch it on once (people can still turn it off)
+        if (s) setSettingsState({ ...DEFAULT_SETTINGS, ...s, ...((s as AppSettings).settingsV !== 2 ? { assist: true, assistConsent: true, autoAnswer: true, settingsV: 2 } : {}) })
         // open the last page directly; no dashboard detour
         const last = await getMeta<string>('lastNotebookId')
         if (last && last !== 'nb_scratch' && (await loadNotebook(last))) return open(last)

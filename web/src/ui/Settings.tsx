@@ -3,6 +3,7 @@ import { api, type Capabilities } from '../tutor/api'
 import { Icon } from './icons'
 
 export interface AppSettings {
+  settingsV?: number
   autoAnswer: boolean
   assist: boolean
   assistConsent: boolean
@@ -10,7 +11,8 @@ export interface AppSettings {
   stylusOnly: boolean
 }
 
-export const DEFAULT_SETTINGS: AppSettings = { autoAnswer: true, assist: false, assistConsent: false, speechOutput: false, stylusOnly: false }
+// Assist (read after you pause writing) is on from the start: that is the whole experience
+export const DEFAULT_SETTINGS: AppSettings = { autoAnswer: true, assist: true, assistConsent: true, settingsV: 2, speechOutput: false, stylusOnly: false }
 
 function Status({ v }: { v: boolean | null | undefined }) {
   if (v === true) return <span className="status ok">Yes</span>
