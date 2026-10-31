@@ -39,6 +39,8 @@ export function ReadbackLayer({ page, view, phases, selectedRegionId, hoveredReg
   const stop = (e: React.PointerEvent) => e.stopPropagation()
   const canHover = typeof window !== 'undefined' && window.matchMedia?.('(hover: hover)').matches
   const lastStroke = page.strokes[page.strokes.length - 1]
+  // phones can't hover: the latest line keeps its row only until NOVA has answered it
+  const answered = (id: string) => page.tutorObjects.some((t) => t.anchorRegionId === id && t.status === 'active')
   const latestRegion = lastStroke ? page.regions.find((r) => r.sourceStrokeIds.includes(lastStroke.id))?.id : undefined
   return (
     <>
@@ -49,7 +51,7 @@ export function ReadbackLayer({ page, view, phases, selectedRegionId, hoveredReg
         const isProblem = page.problemRegionId === region.id
         const selected = selectedRegionId === region.id
         const top = s.y + s.h + 4
-        const reveal = selected || hoveredRegionId === region.id || editing?.id === region.id || (!canHover && latestRegion === region.id)
+        const reveal = selected || hoveredRegionId === region.id || editing?.id === region.id || (!canHover && latestRegion === region.id && !answered(region.id))
         const needsYou = reading?.state === 'needs_clarification' || phase?.phase === 'failed'
         if (!reveal && !needsYou) return null // quiet page: details appear when you point at a line
         // dots/specks and big drawings with no maths get no label at all

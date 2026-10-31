@@ -95,7 +95,10 @@ export function useNova(o: Options) {
   const page = () => opts.current.stateRef.current!.doc.pages[opts.current.pageId]
 
   const waitPenUp = async () => {
-    while (opts.current.penActive.current) await new Promise((r) => setTimeout(r, 60))
+    // never wait forever: a lost "finger up" (phone gestures) must not stop NOVA reading and answering
+    const until = Date.now() + 8000
+    while (opts.current.penActive.current && Date.now() < until) await new Promise((r) => setTimeout(r, 60))
+    opts.current.penActive.current = false
   }
 
   const readRegion = useCallback(async (regionId: string) => {

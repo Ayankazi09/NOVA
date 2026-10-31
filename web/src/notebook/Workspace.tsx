@@ -152,6 +152,8 @@ export function Workspace(p: Props) {
       erasing.current.clear()
       redrawInk()
     }
+    // a second finger (or the palm) turned writing into a pinch: the pen is up now, or NOVA would wait for it forever
+    if (gesture.current?.kind === 'draw' || gesture.current?.kind === 'erase') props.current.onPenUp()
     gesture.current = { kind: 'pinch', ids, d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, mid0: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, view0: props.current.view }
   }
 
