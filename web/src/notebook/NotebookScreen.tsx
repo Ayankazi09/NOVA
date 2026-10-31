@@ -45,14 +45,17 @@ interface Toast {
   action?: { label: string; fn: () => void }
 }
 
-function useViewportWidth() {
-  const [w, setW] = useState(() => window.innerWidth)
+function useViewport() {
+  const [size, setSize] = useState(() => ({
+    w: typeof window !== 'undefined' ? window.innerWidth : 1200,
+    h: typeof window !== 'undefined' ? window.innerHeight : 800,
+  }))
   useEffect(() => {
-    const on = () => setW(window.innerWidth)
+    const on = () => setSize({ w: window.innerWidth, h: window.innerHeight })
     window.addEventListener('resize', on)
     return () => window.removeEventListener('resize', on)
   }, [])
-  return w
+  return size
 }
 
 export function NotebookScreen({ state, dispatch, settings, setSettings, saveStatus, saveError, onRetrySave, onBack, startAction, onStartConsumed, home }: Props) {
@@ -63,11 +66,12 @@ export function NotebookScreen({ state, dispatch, settings, setSettings, saveSta
   const pageId = nb.lastPageId && doc.pages[nb.lastPageId] ? nb.lastPageId : nb.orderedPageIds[0]
   const page = doc.pages[pageId]
   const pageIndex = nb.orderedPageIds.indexOf(pageId)
-  const vw = useViewportWidth()
-  const phone = vw < 700
-  const desktop = vw >= 1100
+  const { w: vw, h: vh } = useViewport()
+  const phone = vw < 700 || (vw < 1000 && vh < 500)
+  const desktop = vw >= 1100 && vh >= 600
 
   const [tool, setTool] = useState<Tool>('pen')
+  const [hovered, setHovered] = useState<string | null>(null)
   const [colour, setColour] = useState(INK_COLOURS[0].value)
   const [width, setWidth] = useState(INK_WIDTHS[1].value)
   const [lasso, setLasso] = useState(false)
@@ -406,6 +410,14 @@ export function NotebookScreen({ state, dispatch, settings, setSettings, saveSta
     else setSettings({ ...settings, assist: true })
   }
 
+  useEffect(() => {
+    const st = nova.status
+    if (st.state === 'idle' || st.state === 'working' || st.retry) return
+    const t = setTimeout(() => nova.setStatus({ state: 'idle' }), 4000) // notices don't linger on the page
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nova.status])
+
   const statusPos = (() => {
     const id = nova.status.anchorRegionId
     const b = id ? regionBounds(id) : undefined
@@ -477,7 +489,22 @@ export function NotebookScreen({ state, dispatch, settings, setSettings, saveSta
   const saveLabel = saveStatus === 'saving' ? 'Saving…' : saveStatus === 'error' ? 'Not saved' : 'Saved'
 
   return (
-    <div className={`notebook ${phone ? 'phone' : desktop ? 'desktop' : 'tablet'} ${focus ? 'focus' : ''}`} onPointerDown={() => menu && setMenu(null)}>
+    <div
+      className={`notebook ${phone ? 'phone' : desktop ? 'desktop' : 'tablet'} ${focus ? 'focus' : ''}`}
+      onPointerDown={() => menu && setMenu(null)}
+      onPointerMove={(e) => {
+        if (e.pointerType !== 'mouse') return
+        // which written line is the mouse over (including the strip under it where its label sits)?
+        const ws = document.querySelector('[data-testid=workspace]')?.getBoundingClientRect()
+        if (!ws) return
+        const x = (e.clientX - ws.left - view.tx) / view.scale
+        const y = (e.clientY - ws.top - view.ty) / view.scale
+        const hit = page.regions.find((r) => x >= r.bounds.x - 24 && x <= r.bounds.x + Math.max(r.bounds.w, 360 / view.scale) + 24 && y >= r.bounds.y - 24 && y <= r.bounds.y + r.bounds.h + 56 / view.scale)
+        const id = hit?.id ?? null
+        if (id !== hovered) setHovered(id)
+      }}
+      onPointerLeave={() => hovered && setHovered(null)}
+    >
       {!focus && home && (
         <header className="topbar home-bar">
           <img className="brand-logo" src="/nova-logo.png" alt="NOVA" />
@@ -621,6 +648,7 @@ export function NotebookScreen({ state, dispatch, settings, setSettings, saveSta
                 view={view}
                 phases={nova.phases}
                 selectedRegionId={selected}
+                hoveredRegionId={hovered}
                 onAccept={(id, text) => dispatch({ type: 'acceptReading', pageId, regionId: id, text })}
                 onRetry={(id) => void nova.readNow(id).catch((e) => toast((e as Error).message))}
                 onSelect={setSelected}

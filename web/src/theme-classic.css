@@ -206,68 +206,351 @@ body { background: var(--workspace); }
 .nb-card:hover .nb-del, .nb-del:focus-visible { opacity: 1; }
 .nb-del:hover { color: var(--bad); }
 .library-foot { padding: 10px 40px; font-size: 14px; }
-@media (max-width: 699px) {
-  .library-main { padding: 16px; gap: 24px; }
-  .lib-continue { grid-template-columns: 1fr; padding: 18px; gap: 18px; }
-  .lc-sheet { max-width: 220px; }
-  .lc-title { font-size: 26px; }
-  .lib-grid { grid-template-columns: repeat(2, 1fr); gap: 20px 14px; }
-  .nb-del { opacity: 1; }
-  .title-input { width: 100%; font-size: 17px; }
-  .topbar { height: 52px; }
-}
-
 /* ---- the NOVA logo */
 .brand-logo { display: block; height: 34px; width: auto; user-select: none; -webkit-user-drag: none; }
 .brand-logo.sm { height: 26px; margin: 0 6px 0 2px; }
 .library .brand-logo { height: 38px; margin-right: 6px; }
 .ask-title { display: inline-flex; align-items: center; gap: 8px; }
 .ask-mark { width: 22px; height: 22px; }
-@media (max-width: 699px) { .brand-logo { height: 28px; } }
 
-/* ---- phones and tablets */
-.page-count { white-space: nowrap; }
-.phone .topbar { gap: 4px; }
-.phone .title-input { min-width: 0; flex: 1 1 auto; width: auto; font-size: 17px; padding: 4px 6px; }
-.phone .assist-toggle { height: 32px; padding: 0 10px; font-size: 13px; flex: none; }
-.phone .dock { height: 60px; }
-.phone .dock .tool-btn { min-width: 48px; }
+/* ---- phones and mobile layouts */
+@media (max-width: 699px) {
+  :root { font-size: 15px; }
+  html, body, #root, .notebook {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+    width: 100%;
+  }
+  .page-count { white-space: nowrap; }
+  .hide-phone { display: none !important; }
+
+  /* Notebook Top Bar */
+  .phone .topbar {
+    height: 48px;
+    padding: 0 max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left));
+    padding-top: env(safe-area-inset-top, 0px);
+    gap: 4px;
+    overflow: hidden;
+    max-width: 100vw;
+    box-sizing: border-box;
+    align-items: center;
+  }
+  .phone .topbar .icon-btn {
+    min-width: 44px;
+    min-height: 44px;
+    height: 44px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    border-radius: 8px;
+  }
+  .phone .topbar .title-input {
+    min-width: 60px;
+    flex: 1 1 auto;
+    width: auto;
+    max-width: calc(100vw - 180px);
+    font-size: 16px;
+    font-weight: 600;
+    padding: 4px 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .phone .assist-toggle {
+    min-height: 44px;
+    height: 44px;
+    padding: 0 10px;
+    font-size: 12.5px;
+    font-weight: 600;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 22px;
+  }
+  .phone .page-count {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0 6px;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Bottom Dock */
+  .phone .dock {
+    height: 54px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    padding-left: max(8px, env(safe-area-inset-left));
+    padding-right: max(8px, env(safe-area-inset-right));
+    box-sizing: content-box;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background: var(--surface);
+    border-top: 1px solid var(--rule);
+    max-width: 100vw;
+    overflow: hidden;
+  }
+  .phone .dock .tool-btn {
+    min-width: 48px;
+    min-height: 44px;
+    height: 44px;
+    padding: 0 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+  }
+  .phone .dock .tool-btn svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  /* Popovers on Phone */
+  .phone .dock-pop {
+    bottom: calc(100% + 8px) !important;
+    right: 4px !important;
+    width: min(320px, calc(100vw - 16px)) !important;
+    max-width: calc(100vw - 16px) !important;
+    box-sizing: border-box;
+    padding: 12px;
+    border-radius: 14px;
+    box-shadow: 0 8px 30px rgba(20, 25, 30, 0.16);
+  }
+  .phone .dock-pop .tool-btn {
+    min-width: 44px;
+    min-height: 44px;
+    height: 44px;
+    padding: 0 8px;
+    border-radius: 8px;
+  }
+  .phone .dock-pop .swatch {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    min-height: 38px;
+    margin: 3px;
+    border-radius: 50%;
+  }
+  .phone .dock-pop .width-btn {
+    width: 56px;
+    height: 44px;
+    min-height: 44px;
+    border-radius: 8px;
+  }
+  .phone .dock-pop .chip {
+    min-height: 40px;
+    padding: 6px 14px;
+    display: inline-flex;
+    align-items: center;
+    font-size: 14px;
+  }
+  .phone .menu-item,
+  .popover .menu-item {
+    min-height: 44px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    font-size: 15px;
+  }
+
+  /* Selection Menu & Readback on Phone */
+  .region-menu {
+    max-width: calc(100vw - 16px);
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding: 4px 6px;
+    border-radius: 10px;
+  }
+  .region-menu::-webkit-scrollbar {
+    display: none;
+  }
+  .phone .region-menu .menu-btn {
+    min-height: 44px;
+    padding: 0 12px;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+  .phone .region-menu .icon-btn.sm {
+    min-width: 44px;
+    min-height: 44px;
+    height: 44px;
+  }
+  .phone .readback {
+    max-width: calc(100vw - 24px);
+    font-size: 13.5px;
+  }
+  .phone .rb-action {
+    min-height: 36px;
+    padding: 4px 12px;
+    font-size: 13px;
+  }
+  .phone .nova-status {
+    max-width: calc(100vw - 24px);
+    box-sizing: border-box;
+    font-size: 13.5px;
+    padding: 8px 12px;
+  }
+
+  /* Ask NOVA Panel as Bottom Sheet */
+  .ask-panel,
+  .phone .ask-panel.sheet-mode,
+  .ask-panel.sheet-mode {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    max-height: 50dvh;
+    border-radius: 18px 18px 0 0;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    padding-left: max(8px, env(safe-area-inset-left));
+    padding-right: max(8px, env(safe-area-inset-right));
+    box-shadow: 0 -4px 24px rgba(20, 25, 30, 0.16);
+    z-index: 45;
+    transition: max-height 220ms ease;
+  }
+  .phone .ask-panel.sheet-mode:focus-within,
+  .ask-panel.sheet-mode:focus-within {
+    max-height: 80dvh;
+  }
+  .phone .ask-head .icon-btn.sm {
+    min-width: 44px;
+    min-height: 44px;
+    height: 44px;
+  }
+  .phone .ask-row textarea {
+    font-size: 16px;
+    min-height: 44px;
+  }
+  .phone .ask-row .icon-btn {
+    min-width: 44px;
+    min-height: 44px;
+    height: 44px;
+  }
+  .phone .ask-panel .chip {
+    min-height: 40px;
+    padding: 6px 14px;
+    display: inline-flex;
+    align-items: center;
+    font-size: 13.5px;
+  }
+  .sheet {
+    max-height: 50dvh;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+  .sheet:focus-within {
+    max-height: 80dvh;
+  }
+
+  /* Drawers: Pages & History */
+  .phone .pages-rail.drawer {
+    width: min(280px, 80vw);
+    z-index: 50;
+  }
+  .phone .panel-head .icon-btn.sm {
+    min-width: 44px;
+    min-height: 44px;
+    height: 44px;
+  }
+  .phone .toasts {
+    bottom: calc(64px + max(8px, env(safe-area-inset-bottom)));
+  }
+
+  /* Library on Phone */
+  .library-main { padding: 16px; gap: 24px; }
+  .lib-continue { grid-template-columns: 1fr; padding: 18px; gap: 16px; }
+  .lc-sheet { max-width: 140px; }
+  .lc-title { font-size: 24px; }
+  .lib-grid { grid-template-columns: repeat(2, 1fr); gap: 18px 12px; }
+  .nb-del { opacity: 1; }
+  .library .topbar { gap: 6px; padding: 0 10px; }
+  .library .topbar .title-static { display: none; }
+  .library .topbar .btn { height: 38px; padding: 0 10px; font-size: 13.5px; white-space: nowrap; }
+  .library .brand-logo { height: 28px; }
+  .lc-lines li { font-size: 14.5px; }
+  .lc-stats span { font-size: 12.5px; }
+
+  /* Dialogs on Phone */
+  .dialog {
+    width: calc(100vw - 20px) !important;
+    max-width: calc(100vw - 20px) !important;
+    padding: 16px;
+    max-height: 88dvh;
+  }
+  .dialog-head .icon-btn.sm {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .dialog .btn {
+    min-height: 44px;
+  }
+}
+
+/* ---- Landscape Mobile Viewports (Short Height) */
+@media (max-height: 500px) and (orientation: landscape) {
+  :root { font-size: 14.5px; }
+  .phone .topbar {
+    height: 40px;
+    padding: 0 max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+    padding-top: 0;
+  }
+  .phone .topbar .icon-btn {
+    min-width: 40px;
+    height: 38px;
+  }
+  .phone .topbar .title-input {
+    font-size: 15px;
+  }
+  .phone .topbar .assist-toggle {
+    min-height: 36px;
+    height: 36px;
+    font-size: 12px;
+    padding: 0 10px;
+  }
+  .phone .topbar .page-count {
+    min-height: 36px;
+    font-size: 12px;
+  }
+  .phone .dock {
+    height: 44px;
+    padding-bottom: max(4px, env(safe-area-inset-bottom));
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+  .phone .dock .tool-btn {
+    min-width: 44px;
+    height: 38px;
+  }
+  .phone .ask-panel.sheet-mode {
+    max-height: 72dvh;
+  }
+  /* Fallback compact toolbar for desktop/tablet browser windows resized to <500px */
+  .topbar { height: 42px; padding: 0 12px; gap: 6px; }
+  .toolbar { height: 42px; padding: 0 6px; gap: 2px; }
+  .toolbar .icon-btn, .toolbar .tool-btn { min-width: 38px; height: 38px; padding: 0 6px; }
+  .toolbar .ask-btn { height: 34px; padding: 0 10px; font-size: 13.5px; }
+  .toolbar .assist-toggle { height: 32px; padding: 0 8px; font-size: 12.5px; }
+}
+
 /* tablets: the full toolbar scrolls sideways instead of pushing Ask NOVA off the screen */
 .tablet .toolbar { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
 .tablet .toolbar::-webkit-scrollbar { display: none; }
 .tablet .toolbar .tool-label { display: none; }
 .tablet .toolbar > * { flex: none; }
-@media (max-width: 699px) {
-  .library .topbar { gap: 6px; padding: 0 10px; }
-  .library .topbar .title-static { display: none; }
-  .library .topbar .btn { height: 38px; padding: 0 10px; font-size: 14px; white-space: nowrap; }
-  .library .brand-logo { height: 30px; }
-  .lc-sheet { max-width: 160px; }
-  .lib-continue { grid-template-columns: 120px 1fr; align-items: start; }
-  .lc-lines li { font-size: 15px; }
-  .lc-stats span { font-size: 13px; }
-  .btn.big { height: 44px; font-size: 16px; padding: 0 16px; }
-  .ask-panel { left: 0 !important; right: 0 !important; width: auto !important; max-width: none !important; }
-}
 .tablet .toolbar .zoom { display: none; }
 .tablet .toolbar { gap: 0; padding: 0 6px; }
 .tablet .toolbar .icon-btn, .tablet .toolbar .tool-btn { min-width: 44px; padding: 0 6px; }
 .tablet .ask-btn { padding: 0 12px; }
-
-/* ---- tester welcome */
-.welcome { min-height: 100%; display: grid; place-items: center; padding: 24px 16px; background: var(--workspace); background-image: linear-gradient(var(--line-soft) 1px, transparent 1px), linear-gradient(90deg, var(--line-soft) 1px, transparent 1px); background-size: 24px 24px; }
-.welcome-card { width: 100%; max-width: 440px; background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 32px 28px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 10px 30px rgba(20, 25, 30, 0.08); }
-.welcome-logo { height: 56px; width: auto; align-self: flex-start; margin-bottom: 6px; }
-.welcome-card h1 { margin: 0; font-size: 26px; font-weight: 700; color: var(--text); }
-.welcome-card p { margin: 0 0 6px; font-size: 16px; color: var(--text-2); line-height: 1.5; }
-.welcome-card label { font-size: 14px; font-weight: 600; color: var(--text); }
-.welcome-card input { height: 48px; border: 1px solid var(--line); border-radius: 10px; padding: 0 14px; font-size: 18px; font-family: inherit; }
-.welcome-card input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
-.welcome-card .btn.big { margin-top: 6px; justify-content: center; }
-.welcome-card small { font-size: 14px; color: var(--text-3, var(--ink-3)); line-height: 1.5; }
-.tester-chip { font-size: 14px; color: var(--text-2); white-space: nowrap; }
-.tester-chip button { margin-left: 6px; }
-@media (max-width: 699px) { .hide-phone { display: none !important; } }
 
 /* outdated NOVA ink (the line changed) is removed from view: no faded clutter */
 .nova-ink.stale, .ink-tag.stale, .tutor-card.stale, .hl.stale, .hl-tag.stale { display: none; }
@@ -281,3 +564,10 @@ body { background: var(--workspace); }
 .welcome-card input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .welcome-card .btn.big { width: 100%; justify-content: center; height: 52px; margin: 0; }
 .welcome-card .welcome-logo { align-self: center; }
+
+/* NOVA's little labels beside its writing: only when you point at them */
+@media (hover: hover) {
+  .ink-tag { opacity: 0; transition: opacity 120ms; }
+  .ink-tag:hover, .ink-tag:focus-visible { opacity: 1; }
+}
+@media (hover: none) { .ink-tag { display: none; } }
