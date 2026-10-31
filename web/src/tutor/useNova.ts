@@ -62,6 +62,21 @@ function sameContext(a: RequestContext, b: RequestContext) {
   return (Object.keys(a) as (keyof RequestContext)[]).every((k) => a[k] === b[k])
 }
 
+/** Is this line a working step under the problem (just below it, things moved across "="), or a new question? */
+function isWorkingStep(page: Page, problemId: string, line: { bounds: Rect }, text: string): boolean {
+  const pr = page.regions.find((r) => r.id === problemId)
+  const ptext = readingText(page.readings[problemId])
+  if (!pr || !ptext) return false
+  const h = Math.max(40, pr.bounds.h)
+  const below = line.bounds.y > pr.bounds.y + h * 0.5 && line.bounds.y - (pr.bounds.y + pr.bounds.h) < h * 14
+  const alongside = line.bounds.x < pr.bounds.x + pr.bounds.w + 200 && line.bounds.x + line.bounds.w > pr.bounds.x - 200
+  if (!below || !alongside) return false
+  // "ax + b = c" written again under "ax + b = c" is a new question, not a step
+  const start = /^s*-?d*.?d*s*[a-zθ]s*[+-]s*d+.?d*s*=s*-?d+.?d*s*$/i
+  if (start.test(ptext) && start.test(text)) return false
+  return true
+}
+
 export function useNova(o: Options) {
   const [phases, setPhases] = useState<Record<string, { phase: ReadPhase; error?: string }>>({})
   const [status, setStatus] = useState<TutorStatus>({ state: 'idle' })
@@ -134,7 +149,12 @@ export function useNova(o: Options) {
     const text = readingText(p?.readings[regionId])
     if (!p || !region || region.sourceHash !== sourceHash || !text) return false
     if (Object.values(opts.current.stateRef.current!.doc.tests ?? {}).some((t) => t.status !== 'finished' && t.pageIds.includes(p.id))) return false // it's a test
-    const problemId = p.problemRegionId && p.problemRegionId !== regionId ? p.problemRegionId : undefined
+    let problemId = p.problemRegionId && p.problemRegionId !== regionId ? p.problemRegionId : undefined
+    if (problemId && !force && !isWorkingStep(p, problemId, region, text)) {
+      // a fresh question (somewhere else, or in the same starting form): it is the new problem, solve it
+      opts.current.dispatch({ type: 'setProblem', pageId: p.id, regionId })
+      problemId = undefined
+    }
     const problemText = problemId ? p.readings[problemId]?.acceptedText : undefined
     let res
     try {
