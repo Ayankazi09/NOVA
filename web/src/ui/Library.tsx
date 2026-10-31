@@ -7,6 +7,8 @@ import { PageThumb } from './PageThumb'
 import { readingText } from '../notebook/doc'
 
 interface Props {
+  tester?: { name: string }
+  onSwitchTester?: () => void
   onOpen: (id: string) => void
   onCreate: () => void
   onImportPaper: (file: File) => void
@@ -55,7 +57,7 @@ function stats(doc?: NotebookDoc) {
   return { lines, right, wrong }
 }
 
-export function Library({ onOpen, onCreate, onImportPaper, notify }: Props) {
+export function Library({ tester, onSwitchTester, onOpen, onCreate, onImportPaper, notify }: Props) {
   const [items, setItems] = useState<NotebookSummary[] | null>(null)
   const [docs, setDocs] = useState<Record<string, NotebookDoc>>({})
   const fileRef = useRef<HTMLInputElement>(null)
@@ -108,7 +110,13 @@ export function Library({ onOpen, onCreate, onImportPaper, notify }: Props) {
         <img className="brand-logo" src="/nova-logo.png" alt="NOVA" />
         <span className="title-static">Notebooks</span>
         <span className="spacer" />
-        <button className="btn" onClick={() => fileRef.current?.click()}>Restore backup</button>
+        {tester && (
+          <span className="tester-chip">
+            {tester.name}
+            <button className="link" onClick={() => { if (confirm('Switch to another tester? Your notebooks stay saved under your name on this device.')) onSwitchTester?.() }}>Switch</button>
+          </span>
+        )}
+        <button className="btn hide-phone" onClick={() => fileRef.current?.click()}>Restore backup</button>
         <button className="btn primary" onClick={onCreate}><Icon.plus /> New notebook</button>
         <input ref={fileRef} type="file" accept=".json,.nova.json,application/json" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void importBackup(f) }} />
         <input ref={pdfRef} type="file" accept="application/pdf,.pdf" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onImportPaper(f) }} />

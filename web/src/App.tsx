@@ -4,6 +4,7 @@ import { NotebookScreen, type SaveStatus } from './notebook/NotebookScreen'
 import { getMeta, listNotebooks, loadNotebook, saveNotebook, setMeta } from './storage/db'
 import type { StartAction } from './ui/Home'
 import { Library } from './ui/Library'
+import { signOutTester, type Tester } from './account/tester'
 import { DEFAULT_SETTINGS, type AppSettings } from './ui/Settings'
 import { loadLibrary } from './handwriting/library'
 
@@ -14,7 +15,7 @@ function reducer(s: S, a: DocAction | { type: 'close' }): S {
   return s ? docReducer(s, a) : s
 }
 
-export default function App() {
+export default function App({ tester }: { tester?: Tester }) {
   const [state, dispatch] = useReducer(reducer, null)
   const [screen, setScreen] = useState<'loading' | 'library' | 'notebook' | 'error'>('loading')
   const [bootError, setBootError] = useState<string | null>(null)
@@ -116,7 +117,7 @@ export default function App() {
   if (screen === 'library' || !state)
     return (
       <>
-        <Library onOpen={(id) => void open(id)} onCreate={() => void create()} onImportPaper={(f) => void create({ type: 'pdf', file: f }, f.name.replace(/.pdf$/i, '').slice(0, 60))} notify={setNotice} />
+        <Library tester={tester} onSwitchTester={() => { signOutTester(); location.reload() }} onOpen={(id) => void open(id)} onCreate={() => void create()} onImportPaper={(f) => void create({ type: 'pdf', file: f }, f.name.replace(/.pdf$/i, '').slice(0, 60))} notify={setNotice} />
         {toastEl}
       </>
     )

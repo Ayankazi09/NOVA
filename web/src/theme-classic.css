@@ -253,3 +253,18 @@ body { background: var(--workspace); }
 .tablet .toolbar { gap: 0; padding: 0 6px; }
 .tablet .toolbar .icon-btn, .tablet .toolbar .tool-btn { min-width: 44px; padding: 0 6px; }
 .tablet .ask-btn { padding: 0 12px; }
+
+/* ---- tester welcome */
+.welcome { min-height: 100%; display: grid; place-items: center; padding: 24px 16px; background: var(--workspace); background-image: linear-gradient(var(--line-soft) 1px, transparent 1px), linear-gradient(90deg, var(--line-soft) 1px, transparent 1px); background-size: 24px 24px; }
+.welcome-card { width: 100%; max-width: 440px; background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 32px 28px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 10px 30px rgba(20, 25, 30, 0.08); }
+.welcome-logo { height: 56px; width: auto; align-self: flex-start; margin-bottom: 6px; }
+.welcome-card h1 { margin: 0; font-size: 26px; font-weight: 700; color: var(--text); }
+.welcome-card p { margin: 0 0 6px; font-size: 16px; color: var(--text-2); line-height: 1.5; }
+.welcome-card label { font-size: 14px; font-weight: 600; color: var(--text); }
+.welcome-card input { height: 48px; border: 1px solid var(--line); border-radius: 10px; padding: 0 14px; font-size: 18px; font-family: inherit; }
+.welcome-card input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+.welcome-card .btn.big { margin-top: 6px; justify-content: center; }
+.welcome-card small { font-size: 14px; color: var(--text-3, var(--ink-3)); line-height: 1.5; }
+.tester-chip { font-size: 14px; color: var(--text-2); white-space: nowrap; }
+.tester-chip button { margin-left: 6px; }
+@media (max-width: 699px) { .hide-phone { display: none !important; } }

@@ -4,7 +4,13 @@ import type { Asset, NotebookDoc, NotebookSummary } from '../notebook/types'
 import { SCHEMA_VERSION } from '../notebook/types'
 import { migrateDoc } from './migrate'
 
-const DB_NAME = 'nova'
+let DB_NAME = 'nova'
+
+/** Each tester has their own notebook store on this device (fresh pages per account). */
+export function setAccountStore(accountId: string) {
+  DB_NAME = `nova-${accountId}`
+  dbPromise = null
+}
 const DB_VERSION = 1
 
 export class StorageError extends Error {

@@ -1,0 +1,20 @@
+export default async function run(page) {
+  const { drawText } = await import('./glyphs.mjs')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.reload()
+  await page.waitForSelector('.welcome-card', { timeout: 20000 })
+  await page.screenshot({ path: './e2e-welcome.png' })
+  await page.fill('#tester-name', 'QA Tester')
+  await page.getByRole('button', { name: 'Start writing' }).click()
+  await page.waitForSelector('[data-testid=workspace]', { timeout: 20000 })
+  const ws = await page.locator('[data-testid=workspace]').boundingBox()
+  await drawText(page, 'x - 4 = 6', ws.x + 30, ws.y + 120, 44, 3)
+  await page.waitForFunction(() => document.querySelectorAll('.nova-ink').length > 0, null, { timeout: 90000 }).catch(() => {})
+  await page.waitForTimeout(2000)
+  const read1 = await page.evaluate(() => [...document.querySelectorAll('.readback')].map((e) => e.textContent))
+  await drawText(page, '9 - 4 =', ws.x + 30, ws.y + 560, 44, 2)
+  await page.waitForFunction(() => document.querySelectorAll('.nova-ink').length > 1, null, { timeout: 90000 }).catch(() => {})
+  await page.waitForTimeout(2000)
+  await page.screenshot({ path: './e2e-tester.png' })
+  return { read1, all: await page.evaluate(() => [...document.querySelectorAll('.readback')].map((e) => e.textContent)), dbs: await page.evaluate(async () => (await indexedDB.databases()).map((d) => d.name)) }
+}
