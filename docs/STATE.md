@@ -8,7 +8,7 @@ _Last updated: 2026-10-31 (session 1, evening)_
 | Backend (FastAPI) | http://127.0.0.1:8010 | `cd server && .venv/Scripts/python -m uvicorn app.main:app --host 127.0.0.1 --port 8010` |
 | Web (Vite) | **http://127.0.0.1:5180** | `cd web && npm run dev` |
 
-**At the end of this session the backend was stopped by Claude Code because the PC ran low on memory.** Start it again with the command above (the web dev server may still be running; if not, start it too). No auto-reload: restart the backend after server code changes.
+No auto-reload: restart the backend after server code changes.
 Secrets: `server/.env`. Speech model: `server/models/` (`scripts/setup_speech.py`). Ports 8000/5173 belong to other processes; leave them alone.
 
 ## Checks (last run)
