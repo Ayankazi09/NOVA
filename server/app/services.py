@@ -93,7 +93,16 @@ def clean_math(s: Any, limit: int = MAX_EQUATION_CHARS) -> str:
 
 
 def _norm_reading(s: str) -> str:
-    return re.sub(r"\s+", "", s).lower().replace("×", "*")
+    """Compare readings by their maths, not their formatting: (7)/(2) == 7/2, 2·x == 2*x == 2x, ÷ == /."""
+    t = re.sub(r"\s+", "", s).lower()
+    for a, b in (("×", "*"), ("·", "*"), ("÷", "/"), ("−", "-"), ("–", "-"), ("…", "..."), ("²", "^2"), ("³", "^3")):
+        t = t.replace(a, b)
+    prev = None
+    while prev != t:  # drop brackets around a single number or letter
+        prev = t
+        t = re.sub(r"\(([a-z0-9.]+)\)", r"\1", t)
+    t = re.sub(r"(\d)\*([a-z(])", r"\1\2", t)  # 2*x -> 2x
+    return t
 
 
 # ------------------------------------------------------------ recognition
@@ -165,6 +174,8 @@ async def recognize(req: RecognizeRequest) -> RecognizeResponse:
         elif not raw and o_raw:
             status, raw, alts, needs = o_status, o_raw, o_alts, True
     alts = alts[:3]
+    if status == "incomplete":
+        needs = False  # still being written: read it again when it is finished, don't interrupt
     if needs and not alts:
         needs = bool(ok[0].get("needsClarification")) and len(ok) == 1
     note = {

@@ -24,7 +24,7 @@ export class RecognitionScheduler {
   private readonly o: Required<Omit<SchedulerOptions, 'onCapReached'>> & Pick<SchedulerOptions, 'onCapReached'>
 
   constructor(opts: SchedulerOptions) {
-    this.o = { pauseMs: 1200, cooldownMs: 4000, sessionCap: 60, now: () => Date.now(), ...opts }
+    this.o = { pauseMs: 2000, cooldownMs: 3000, sessionCap: 60, now: () => Date.now(), ...opts }
   }
 
   /** A stroke was committed into (or removed from) a region. */
