@@ -12,4 +12,4 @@ qa-work
 docs
 Issues screenshot
 *.pdf
-*.png
+tests/e2e/*.png
