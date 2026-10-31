@@ -622,6 +622,77 @@ def _solve(toks, rel_at, sp) -> dict:
     return {"status": "answered", "answer": ans, "kind": "solved", "note": "0° ≤ θ < 360°" if degrees else ""}
 
 
+def _numeric(text: str, sp) -> dict:
+    """Roots of a one-letter equation that has no exact form (sin x + tan x = 30, x = cos x), found numerically."""
+    import math
+
+    toks = tokenize(text)
+    rels = [k for k, t in enumerate(toks) if t[0] == "rel" and t[1] == "="]
+    if len(rels) != 1:
+        raise SolveError("Only a single equation can be solved numerically.")
+    l, _ = parse_side(toks[: rels[0]], sp)
+    r, _ = parse_side(toks[rels[0] + 1 :], sp)
+    expr = l - r
+    syms = expr.free_symbols
+    if len(syms) != 1:
+        raise SolveError("Numerical solving needs exactly one unknown.")
+    v = next(iter(syms))
+    f = sp.lambdify(v, expr, modules=["math"])
+    def val(x):
+        try:
+            y = f(x)
+            y = complex(y)
+            return y.real if abs(y.imag) < 1e-9 and math.isfinite(y.real) else None
+        except (ValueError, ZeroDivisionError, OverflowError, TypeError):
+            return None
+
+    # periodic only if the whole equation repeats every 2π (x = cos x does not)
+    has_trig = any(expr.has(fn) for fn in (sp.sin, sp.cos, sp.tan, sp.sec, sp.csc, sp.cot))
+    periodic = False
+    if has_trig:
+        checks = [(val(x0), val(x0 + 2 * math.pi)) for x0 in (0.3, 1.1, 2.7, 4.2)]
+        good = [(u, w) for u, w in checks if u is not None and w is not None]
+        periodic = bool(good) and all(abs(u - w) < 1e-7 * max(1.0, abs(u)) for u, w in good)
+    lo, hi, n = (0.0, 2 * math.pi, 6000) if periodic else (-100.0, 100.0, 20000)
+    roots: list[float] = []
+    step = (hi - lo) / n
+    a, fa = lo, val(lo)
+    for i in range(1, n + 1):
+        b = lo + i * step
+        fb = val(b)
+        if fa is not None and fb is not None:
+            if fa == 0:
+                roots.append(a)
+            elif fa * fb < 0 and abs(fa) < 1e3 and abs(fb) < 1e3:  # a sign change, not a jump across a pole
+                x0, x1, y0 = a, b, fa
+                for _ in range(80):
+                    m = (x0 + x1) / 2
+                    ym = val(m)
+                    if ym is None:
+                        break
+                    if y0 * ym <= 0:
+                        x1 = m
+                    else:
+                        x0, y0 = m, ym
+                m = (x0 + x1) / 2
+                ym = val(m)
+                if ym is not None and abs(ym) < 1e-6:
+                    roots.append(m)
+        a, fa = b, fb
+    uniq: list[float] = []
+    for x in roots:
+        if all(abs(x - u) > 1e-4 for u in uniq):
+            uniq.append(x)
+    if not uniq:
+        raise SolveError("No real solution was found.")
+    if len(uniq) > 6:
+        raise SolveError("Too many solutions to list.")
+    name = GREEK_OUT.get(v.name, v.name)
+    fx = to_hand(expr, sp)
+    return {"status": "answered", "kind": "numeric", "answer": " or ".join(f"{name} ≈ {x:.3f}" for x in uniq),
+            "note": "+ 2nπ" if periodic else "", "approx": fx}
+
+
 def _compare(problem: str, current: str, sp) -> dict:
     """Same solution set => equivalent step (or solved if the step isolates the variable)."""
     pt, ct = tokenize(problem), tokenize(current)
@@ -784,6 +855,8 @@ def _work(text: str, mode: str, other: str | None) -> dict:
 
     if mode == "compare":
         return _compare(text, other or "", sp)
+    if mode == "numeric":
+        return _numeric(text, sp)
     toks = tokenize(text)
     rels = [k for k, t in enumerate(toks) if t[0] == "rel"]
     if len(rels) > 1:

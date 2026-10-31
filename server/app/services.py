@@ -640,7 +640,7 @@ async def tutor(req: TutorRequest) -> TutorResponse:
 
 _TASK = re.compile(
     r"=|\?|…|\.\.\.|∪|∩|∈|⊂|⊆|∫|∑|lim|d/d|'|′|\b(derive|show|hence|verify|calculate|compute|find|solve|evaluate|simplify|factori[sz]e|expand|differentiate|derivative|integrate|"
-    r"prove|sum|series|sequence|term|AP|GP|probability|mean|median|mode|variance|matrix|det|log|ln|nCr|nPr|union|intersection)\b",
+    r"prove|sum|series|sequence|term|AP|GP|area|perimeter|volume|surface|radius|diameter|circumference|circle|triangle|square|rectangle|polygon|angle|hypotenuse|pythagoras|sector|arc|chord|tangent|cone|cylinder|sphere|cube|cm|m2|probability|mean|median|mode|variance|matrix|det|log|ln|nCr|nPr|union|intersection)\b",
     re.I,
 )
 
@@ -649,7 +649,7 @@ async def solve_any(text: str, problem: str | None) -> dict | None:
     """Anything the exact engine can't do (functions, calculus, series, sets, ...): NOVA's maths model writes the worked solution."""
     user = f"STUDENT LINE: {text}" + (f"\nPROBLEM THEY ARE WORKING ON: {problem}" if problem and problem != text else "")
     try:
-        reply = await provider.generate(SOLVE_ANY_INSTRUCTIONS, user, max_tokens=1500, effort="low")
+        reply = await provider.generate(SOLVE_ANY_INSTRUCTIONS, user, max_tokens=6000, effort="low")
         obj = parse_json_object(reply.text)
     except Exception as e:  # never break the page over a bonus answer
         log.warning("solve_any failed: %s", type(e).__name__)
@@ -729,6 +729,20 @@ async def _auto_exact(text: str, problem: str | None, auto_answer: bool) -> dict
     if r.status == "answered" and (r.kind == "truth" or (r.answer or "").startswith("true for every")):
         ok = (r.answer or "").startswith("true")
         return {"kind": "mark", "verdict": "correct" if ok else "incorrect", "message": "Correct." if ok else "This isn't true."}
+    # no exact form (sin x + tan x = 30): solve it numerically, every root, general solution for trig
+    if r.status in ("timeout", "unsupported") and auto_answer and t.count("=") == 1:
+        nr = await asyncio.to_thread(solve_run, t, "numeric")
+        if nr.status == "answered" and nr.answer:
+            lhs, _, rhs = t.partition("=")
+            var = (re.search(r"[a-zθ]", re.sub(r"sin|cos|tan|sec|cosec|cot|log|ln", "", lhs + rhs)) or ["x"])[0]
+            roots = nr.answer.split(" or ")
+            steps = [f"f({var}) = {nr.approx} = 0", "no exact algebra form"]
+            notes = ["move everything to one side", "so solve it numerically"]
+            for root in roots:
+                steps.append(root + (" + 2nπ" if nr.note else ""))
+                notes.append("where f changes sign" if not nr.note else "repeats every 2π")
+            notes[-1] = "answer"
+            return {"kind": "solution", "steps": steps[:10], "notes": notes[:10], "moves": [None] * min(10, len(steps)), "answer": nr.answer, "message": "Solved numerically by NOVA."}
     # an equation to solve (x + 3 = 4): write the whole worked solution
     if r.status == "answered" and r.kind in ("solved", "rearranged") and r.answer:
         if not auto_answer:

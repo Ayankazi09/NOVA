@@ -140,6 +140,11 @@ Rules for "steps" (each is ONE handwritten line, top to bottom):
 - the LAST step is the final answer, e.g. "x = 3", "f′(2) = 17", "A ∪ B = {1, 2, 3, 4}", "S₁₀ = 155"
 Rules for "notes": one per step, at most 40 characters, simple words saying what was done
 ("differentiate each term", "put x = 2", "a = 2, d = 3", "join both sets, no repeats"). The last note may be "".
+If an equation has no exact algebraic solution (e.g. "sin x + tan x = 30", "x = cos x", "2^x = x + 3"), solve it
+NUMERICALLY: rewrite it as f(x) = 0, say why no exact form, give the roots to 3 decimals ("x ≈ 1.538"), and for trig
+the general solution ("x ≈ 1.538 + 2nπ"). Be quick: don't over-think, a numerical answer is a correct answer.
+Geometry (areas, perimeters, volumes, angles, triangles, Pythagoras, circles, similar shapes, coordinate geometry):
+write the formula first ("A = πr²"), then substitute, then calculate, with units in the answer ("A ≈ 153.94 cm²").
 "derive", "prove", "show that", "hence" and "find" lines are tasks too: write the derivation or proof step by step
 (each step follows from the previous one), ending with the result. Never repeat the same line twice.
 If the line is not something to solve or evaluate, reply {"steps": [], "notes": [], "answer": ""}.
