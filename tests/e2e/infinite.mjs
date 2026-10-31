@@ -1,0 +1,26 @@
+// Endless grid: full-screen grid, pan far right/down, write there, NOVA still answers beside it.
+export default async function run(page) {
+  const { drawText } = await import('./glyphs.mjs')
+  await page.setViewportSize({ width: 1500, height: 950 })
+  await page.waitForSelector('[data-testid=workspace]', { timeout: 20000 })
+  await page.getByRole('button', { name: 'Notebooks' }).click()
+  await page.getByRole('button', { name: /New notebook/ }).click()
+  await page.waitForSelector('[data-testid=workspace]')
+  await page.waitForTimeout(500)
+  const ws = await page.locator('[data-testid=workspace]').boundingBox()
+  await page.screenshot({ path: './e2e-infinite-1.png' })
+  // scroll far right and down (mouse wheel / trackpad)
+  await page.mouse.move(ws.x + 700, ws.y + 500)
+  for (let i = 0; i < 12; i++) await page.mouse.wheel(260, 220)
+  await page.waitForTimeout(300)
+  const view = await page.evaluate(() => document.querySelector('.page-transform.overlay').style.transform)
+  await page.getByRole('button', { name: /Assist off/ }).click()
+  const consent = page.getByRole('button', { name: 'Turn on Assist' })
+  if (await consent.count()) await consent.click()
+  await drawText(page, '7 + 5 =', ws.x + 500, ws.y + 400, 54, 8)
+  await page.waitForFunction(() => document.querySelectorAll('.nova-ink').length > 0, null, { timeout: 45000 }).catch(() => {})
+  await page.waitForTimeout(800)
+  const inks = await page.evaluate(() => document.querySelectorAll('.nova-ink').length)
+  await page.screenshot({ path: './e2e-infinite-2.png' })
+  return { view, inks }
+}

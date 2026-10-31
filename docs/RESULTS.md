@@ -1,0 +1,17 @@
+# NOVA — observed results
+
+Only measured evidence goes here. Everything else is NOT RUN.
+
+| When | Test | Setup | Observed | Notes |
+|---|---|---|---|---|
+| 2026-10-31 13:39 | speech setup | faster-whisper `base.en` cpu/int8 downloaded to server/models (148 MB) | load 75.5s; 3s synthetic clip 1.25s | synthetic benchmark only, not accuracy evidence |
+| 2026-10-31 | provider access | GET /models + one text call, key in server/.env | qwen-3.8-27b listed; text reply "OK" in 8.8 s | Responses API, store:false |
+| 2026-10-31 | vision smoke (not T02) | POST /connection/test vision=true, synthetic **typed** PNG "2x + 3 = 14" | read `2x + 3 = 14` exactly, 3.9–4.7 s (2 runs) | input_image data-URL format confirmed working. NOT handwriting evidence |
+| 2026-10-31 | live tutor (1 case, not T06) | intent=explain "Why is it wrong?", problem 2(x+3)=14, current 2x+3=14, both accepted | check=different (deterministic); hint: "the 2 multiplies both x and the 3 … Which term did you forget to multiply by 2?"; 1 highlight action; answer not revealed; 5.4 s | single case only |
+| 2026-10-31 | speech pipeline (not T07) | /transcribe, Windows SAPI synthetic voice WAV 2.5 s, base.en cpu/int8 | "Why is my second line wrong?" exact, 1.8 s / 1.4 s | synthetic voice; browser webm/opus capture NOT yet tested |
+| 2026-10-31 | recognition eval, SYNTHETIC (not T02) | tests/live/eval_recognition.py: 30 held-out lines in Ink Free/Segoe Print/Comic/MV Boli with slant+jitter | 1 read: 28/30 exact, p50 4.5 s · 2 reads: 29/30 exact, p50 9.9 s under 4-way load · reasoning=low: 28/30, slower | 2 reads chosen; remaining miss: 15 read as 75 (font's 1 looks like 7) |
+| 2026-10-31 | browser end-to-end (stroke-drawn, scripted glyphs) | tests/e2e/journey.mjs, headless Chromium, 1500x1100 | `2(x + 3) = 14`, `2x + 3 = 14`, `12 - 7 = 4`, `y = 2x + 1`, `9 + 6 =` all read exactly; Check → "Different solution" + highlight + hint (answer hidden); wrong arithmetic → "Not correct yet" + highlight; Graph drawn with root/intercept; `3 + 2 =` → Next step writes checked `3 + 2 = 5`; Assist auto-read 5–8 s; stray dot ignored; 0 console errors | synthetic strokes from glyph templates, not human handwriting |
+| 2026-10-31 | auto-answer (browser, stroke-drawn) | tests/e2e/auto.mjs, Assist on | `4 + 2 =` → handwritten 6 beside "=" (5.4 s); `4 + 2 = 7` → red ✗; `x + 3 = 4` → handwritten worked solution `x = 4 − 3`, `x = 1`; `y = 4x` → Graph action in label | no confirm step; synthetic glyph strokes |
+| 2026-10-31 | Ask thread + verified content | tests/e2e/ask_table.mjs | "Add a trigonometry table" with `4 + 2 =` on the page → handwritten ruled table sin/cos/tan/cosec/sec/cot × 0°–90°, all cells verified; follow-up reply continued the same thread | planted error sin 60° = 1/2 corrected to √3/2 in unit test |
+| 2026-10-31 | PDF test mode | tests/e2e/paper.mjs + tests/fixtures/practice_test.pdf | 5 questions read with positions in 13–26 s; help on Q4 gave a hint without the answer + circle; marking: 3/5 with ✓/✗ on the page and red score | fixture's Q6 lies below the page edge (fixture bug) |
+| 2026-10-31 | multi-page MCQ paper (image.png follow-up) | tests/e2e/mcq.mjs + tests/fixtures/mcq_3pages.pdf | 3/3 pages read, 8 questions, 36 s, 0 failed pages; circled (b) on Q1 → ✓, circled (a) on Q2 → ✗ (no model call for circled options); Explain Q2 wrote the worked solution on the grid right of the sheet in black/blue/red | synthetic PDF and mouse circles |

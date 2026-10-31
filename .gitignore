@@ -1,0 +1,24 @@
+# secrets
+server/.env
+.env
+*.env.local
+
+# python
+server/.venv/
+__pycache__/
+.pytest_cache/
+
+# node
+web/node_modules/
+web/dist/
+
+# local speech models
+server/models/
+
+# deploy + local artefacts
+.vercel/
+tests/e2e/*.png
+qa-work/
+Issues screenshot/
+*.pdf
+!tests/fixtures/*.pdf

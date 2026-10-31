@@ -1,0 +1,15 @@
+# never upload secrets, local engines, or test artefacts
+server/.env
+**/.env
+server/.venv
+server/models
+**/__pycache__
+.pytest_cache
+web/node_modules
+web/dist
+tests
+qa-work
+docs
+Issues screenshot
+*.pdf
+*.png

@@ -1,0 +1,226 @@
+/* The original NOVA look (first build): grey workspace, white top bar and a fixed writing toolbar,
+   system font, action blue #245C9C, quiet borders. Loaded after index.css and restores those surfaces. */
+:root {
+  --workspace: #f3f4f6;
+  --desk: #f3f4f6;
+  --desk-2: #e8ecf0;
+  --paper: #ffffff;
+  --surface: #ffffff;
+  --text: #20252b;
+  --ink: #20252b;
+  --text-2: #626b75;
+  --ink-2: #626b75;
+  --ink-3: #8b939c;
+  --accent: #245c9c;
+  --nova: #245c9c;
+  --nova-ink: #245c9c;
+  --nova-deep: #1b4a80;
+  --accent-soft: #e8eff8;
+  --nova-soft: #e8eff8;
+  --line: #dce2e8;
+  --rule: #dce2e8;
+  --rule-2: #cfd6de;
+  --line-soft: #e8ecf0;
+  --bad: #b3261e;
+  --red: #b3261e;
+  --bad-soft: #fbeaea;
+  --red-soft: #fbeaea;
+  --ok: #2e7d4f;
+  --green: #2e7d4f;
+  --ok-soft: #e7f4ec;
+  --green-soft: #e7f4ec;
+  --warn: #8a5a00;
+  --amber: #8a5a00;
+  --amber-soft: #fff4dc;
+  --shadow: 0 4px 16px rgba(20, 25, 30, 0.12), 0 1px 3px rgba(20, 25, 30, 0.08);
+  --shadow-1: 0 1px 2px rgba(20, 25, 30, 0.06);
+  --shadow-2: 0 4px 16px rgba(20, 25, 30, 0.12), 0 1px 3px rgba(20, 25, 30, 0.08);
+  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --serif: var(--sans);
+  --mono: ui-monospace, Consolas, monospace;
+  font-family: var(--sans);
+  font-size: 16px;
+  color: var(--text);
+}
+body { background: var(--workspace); }
+.brand, .title-static, .title-input, .ask-title, .test-title, .panel-head, .dialog h2, .score-num, .score-den, .q-num, .legend-row, .problem-tag, .hl-tag, .group-box, .plot-label, .home-hint { font-family: var(--sans); }
+
+/* ---- top bar */
+.topbar { height: 52px; background: var(--surface); border-bottom: 1px solid var(--line); padding: 0 12px; gap: 8px; }
+.phone .topbar { height: 48px; padding: 0 4px; }
+.title-input { font-size: 17px; font-weight: 600; letter-spacing: 0; border-radius: 6px; padding: 4px 8px; width: 280px; }
+.title-input:hover, .title-input:focus { border-color: var(--line); background: transparent; }
+.save-status { font-size: 14px; color: var(--text-2); font-weight: 400; }
+.save-status::before { display: none; }
+.page-count { background: none; border: 0; border-radius: 0; font-size: 14px; color: var(--text-2); padding: 6px; font-weight: 400; }
+.brand { font-family: var(--sans); font-size: 16px; font-weight: 700; letter-spacing: 0.06em; color: var(--accent); }
+.brand::before { display: none; }
+.title-static { font-size: 17px; font-weight: 600; color: var(--text); }
+.home-btn { color: var(--text); font-weight: 400; }
+
+/* ---- writing toolbar: one compact row under the top bar (not floating) */
+.toolbar { position: static; transform: none; left: auto; top: auto; height: 48px; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 8px; background: var(--surface); border: 0; border-bottom: 1px solid var(--line); border-radius: 0; box-shadow: none; max-width: none; }
+.icon-btn, .tool-btn { min-width: 44px; height: 44px; padding: 0 8px; border-radius: 8px; font-weight: 400; }
+.icon-btn.sm { min-width: 30px; height: 30px; padding: 0 4px; }
+.tool-label { font-size: 14px; font-weight: 400; }
+.tool-btn.active { background: var(--line-soft); color: var(--text); }
+.tool-btn.active:hover:not(:disabled) { background: var(--line-soft); }
+.tool-btn.active::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: 3px; height: 2px; border-radius: 1px; background: var(--accent); }
+.zoom { font-size: 14px; color: var(--text-2); min-width: 56px; }
+.ask-btn { height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-size: 14px; font-weight: 600; margin: 0 4px; box-shadow: none; }
+.ask-btn:hover { background: var(--nova-deep); }
+.ask-btn svg { color: #fff; width: 20px; height: 20px; }
+.assist-toggle { height: 32px; padding: 0 10px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface); font-size: 13px; color: var(--text-2); font-weight: 400; }
+.assist-toggle::before { display: none; }
+.assist-toggle.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.test-btn.active { background: var(--line-soft); color: var(--text); }
+.btn { height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-size: 14px; font-weight: 400; box-shadow: none; }
+.btn:hover:not(:disabled) { border-color: var(--text-2); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: none; }
+.btn.primary:hover:not(:disabled) { background: var(--nova-deep); }
+
+/* ---- the page */
+.workspace { background: var(--workspace); }
+
+/* ---- NOVA on the page */
+.tutor-card { background: #fbfcfe; border: 1px solid #c9d6e6; border-left: 3px solid var(--accent); border-radius: 8px; padding: 8px 10px; font-size: 20px; line-height: 1.4; color: var(--text); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); }
+.tutor-label { font-size: 13px; font-weight: 700; letter-spacing: 0.04em; color: var(--accent); }
+.tutor-label::before { display: none; }
+.tutor-head .icon-btn.sm { opacity: 1; }
+.hl { fill: rgba(194, 53, 46, 0.06); stroke: #c2352e; stroke-width: 2; }
+.hl-tag { font-style: normal; font-size: 16px; font-weight: 400; color: #c2352e; background: #fff; }
+.readback { font-size: 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); }
+.readback.accepted { border-color: transparent; background: rgba(255, 255, 255, 0.85); color: var(--text-2); }
+.rb-action { border-radius: 12px; font-weight: 400; border-color: var(--line); background: #fff; }
+.check-tag { font-weight: 400; border-radius: 4px; font-size: 12px; }
+.region-menu { border-radius: 8px; border: 0; box-shadow: var(--shadow); }
+.menu-btn { font-weight: 400; border-radius: 6px; font-size: 14px; }
+.menu-btn:hover { background: var(--line-soft); color: var(--text); }
+.popover { border-radius: 8px; border: 0; box-shadow: var(--shadow); }
+.nova-status { border-radius: 8px; border: 0; box-shadow: var(--shadow); font-size: 14px; }
+.chip { font-weight: 400; border-radius: 14px; border-color: var(--line); font-size: 13px; }
+.chip:hover:not(:disabled) { background: var(--surface); color: var(--text); border-color: var(--accent); }
+.toast { background: #2b3138; color: #fff; border-radius: 8px; font-weight: 400; font-size: 14px; }
+.toast .link { color: #9cc3f0; }
+
+/* ---- Ask NOVA panel */
+.ask-panel { border-radius: 8px; border: 0; box-shadow: var(--shadow); }
+.ask-title { font-size: 14px; font-weight: 700; letter-spacing: 0.04em; color: var(--accent); text-transform: uppercase; }
+.nova-mark { display: none; }
+.thread { background: var(--workspace); }
+.bubble { font-size: 14px; border-radius: 8px; }
+.bubble.student { background: var(--surface); color: var(--text); border: 1px solid var(--line); }
+.bubble.tutor { background: var(--accent-soft); color: var(--text); border: 0; border-radius: 8px; }
+
+/* ---- panels, test sheet, dialogs */
+.pages-rail { background: var(--surface); padding-top: 0; }
+.history { padding-top: 0; }
+.test-panel { padding-top: 0; }
+.panel-head { font-family: var(--sans); font-size: 14px; font-weight: 600; }
+.thumb { border: 1px solid var(--line); border-radius: 6px; background: #fff; padding: 6px; color: var(--text); }
+.thumb.current { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.thumb-canvas { box-shadow: none; }
+.test-kicker { color: var(--accent); }
+.test-title { font-size: 18px; font-weight: 600; }
+.score { background: #fff; }
+.score-num { font-size: 44px; font-weight: 600; color: var(--bad); }
+.q-row { border-radius: 8px; background: #fff; }
+.q-row.correct { background: #fff; border-color: #b9dcc8; }
+.q-row.incorrect { background: #fff; border-color: #ecc0b6; }
+.q-num { font-size: 14px; font-weight: 600; }
+.dialog { border-radius: 10px; border: 0; }
+.dialog h2 { font-size: 18px; font-weight: 600; }
+.dialog h3 { font-size: 14px; color: var(--text-2); }
+
+/* ---- a bit bigger everywhere */
+:root { font-size: 17px; }
+.topbar { height: 60px; padding: 0 16px; gap: 10px; }
+.title-input { font-size: 19px; width: 320px; }
+.title-static { font-size: 19px; }
+.brand { font-size: 18px; }
+.save-status, .page-count { font-size: 15px; }
+.toolbar { height: 58px; padding: 0 12px; gap: 4px; }
+.icon-btn, .tool-btn { min-width: 48px; height: 48px; padding: 0 10px; border-radius: 10px; }
+.icon-btn svg, .tool-btn svg { width: 22px; height: 22px; }
+.tool-label { font-size: 15px; }
+.zoom { font-size: 15px; }
+.ask-btn { height: 42px; padding: 0 16px; font-size: 16px; border-radius: 10px; }
+.ask-btn svg { width: 22px; height: 22px; }
+.assist-toggle { height: 36px; padding: 0 14px; border-radius: 18px; font-size: 14px; }
+.btn { height: 40px; padding: 0 16px; font-size: 15px; border-radius: 10px; }
+.btn svg { width: 18px; height: 18px; }
+.btn.big { height: 48px; padding: 0 22px; font-size: 17px; font-weight: 600; gap: 8px; }
+.readback { font-size: 15px; }
+.rb-action { font-size: 14px; }
+.tutor-card { font-size: 21px; }
+.menu-btn, .toast, .nova-status { font-size: 15px; }
+.bubble { font-size: 16px; }
+.ask-panel { font-size: 16px; }
+
+/* ---- the Notebooks screen */
+.library { display: flex; flex-direction: column; height: 100%; background: var(--workspace); }
+.library-main { flex: 1; overflow: auto; padding: 32px 40px 24px; display: flex; flex-direction: column; gap: 40px; }
+.library-main > * { width: 100%; max-width: 1320px; margin: 0 auto; }
+
+.lib-continue { display: grid; grid-template-columns: 250px 1fr; gap: 44px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 28px 36px; box-shadow: 0 1px 2px rgba(20, 25, 30, 0.05); background-image: linear-gradient(var(--line-soft) 1px, transparent 1px), linear-gradient(90deg, var(--line-soft) 1px, transparent 1px); background-size: 24px 24px; background-position: -1px -1px; }
+.lc-sheet { border: 0; background: none; padding: 0; transform: rotate(-1.5deg); transition: transform 160ms ease; }
+.lc-sheet:hover { transform: rotate(0deg) translateY(-4px); }
+.lc-sheet .doc-thumb { box-shadow: 0 0 0 1px var(--line), 0 10px 28px rgba(20, 25, 30, 0.16); }
+.lc-body { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.lc-kicker { font-size: 14px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+.lc-title { margin: 0; font-size: 36px; font-weight: 700; line-height: 1.15; color: var(--text); }
+.lc-meta { font-size: 16px; color: var(--text-2); }
+.lc-lines { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.lc-lines li { font-family: var(--mono); font-size: 18px; color: var(--text); background: rgba(255, 255, 255, 0.9); border-left: 3px solid var(--accent); padding: 4px 12px; border-radius: 4px; align-self: flex-start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lc-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.lc-stats span { font-size: 15px; color: var(--text-2); background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; }
+.lc-stats b { color: var(--text); }
+.lc-stats .ok b { color: var(--ok); }
+.lc-stats .bad b { color: var(--bad); }
+.lc-actions { margin-top: 10px; }
+
+.lib-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 18px; }
+.lib-head h2 { margin: 0; font-size: 22px; font-weight: 700; }
+.lib-head .muted { font-size: 16px; }
+.lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 32px 28px; }
+.nb-card { position: relative; display: flex; flex-direction: column; }
+.nb-open, .nb-card.add { border: 0; background: none; padding: 0; text-align: left; display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.nb-paper { position: relative; display: block; margin-bottom: 10px; transition: transform 140ms ease; }
+.nb-card:nth-child(3n) .nb-paper { transform: rotate(0.6deg); }
+.nb-card:nth-child(3n + 1) .nb-paper { transform: rotate(-0.5deg); }
+.nb-open:hover .nb-paper, .nb-card.add:hover .nb-paper { transform: translateY(-4px); }
+.doc-thumb { display: block; width: 100%; aspect-ratio: 3 / 4; border-radius: 6px; background: #fff; }
+.nb-paper .doc-thumb { box-shadow: 0 0 0 1px var(--line), 0 6px 18px rgba(20, 25, 30, 0.10); position: relative; z-index: 1; }
+.nb-open:hover .doc-thumb { box-shadow: 0 0 0 2px var(--accent), 0 10px 24px rgba(20, 25, 30, 0.14); }
+.nb-stack { position: absolute; inset: 6px -6px -6px 6px; border-radius: 6px; background: #fff; box-shadow: 0 0 0 1px var(--line); z-index: 0; }
+.add-paper { aspect-ratio: 3 / 4; border: 2px dashed var(--rule-2); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--text-2); background: rgba(255, 255, 255, 0.55); text-align: center; padding: 16px; }
+.add-paper svg { width: 34px; height: 34px; color: var(--accent); }
+.add-paper b { font-size: 17px; color: var(--text); }
+.add-paper small { font-size: 14px; }
+.nb-card.add:hover .add-paper { border-color: var(--accent); background: #fff; }
+.nb-badge { position: absolute; right: 10px; bottom: 10px; z-index: 2; font-size: 15px; font-weight: 700; padding: 3px 10px; border-radius: 8px; background: #fff; box-shadow: 0 0 0 1px var(--line); color: var(--text-2); }
+.nb-badge.scored { color: var(--bad); box-shadow: 0 0 0 2px var(--bad); transform: rotate(-4deg); }
+.nb-title { font-weight: 700; font-size: 17px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nb-meta { font-size: 14px; color: var(--text-2); }
+.nb-del { position: absolute; top: 8px; right: 8px; z-index: 3; width: 34px; height: 34px; min-width: 34px; background: rgba(255, 255, 255, 0.95) !important; box-shadow: 0 0 0 1px var(--line); opacity: 0; }
+.nb-card:hover .nb-del, .nb-del:focus-visible { opacity: 1; }
+.nb-del:hover { color: var(--bad); }
+.library-foot { padding: 10px 40px; font-size: 14px; }
+@media (max-width: 699px) {
+  .library-main { padding: 16px; gap: 24px; }
+  .lib-continue { grid-template-columns: 1fr; padding: 18px; gap: 18px; }
+  .lc-sheet { max-width: 220px; }
+  .lc-title { font-size: 26px; }
+  .lib-grid { grid-template-columns: repeat(2, 1fr); gap: 20px 14px; }
+  .nb-del { opacity: 1; }
+  .title-input { width: 100%; font-size: 17px; }
+  .topbar { height: 52px; }
+}
+
+/* ---- the NOVA logo */
+.brand-logo { display: block; height: 34px; width: auto; user-select: none; -webkit-user-drag: none; }
+.brand-logo.sm { height: 26px; margin: 0 6px 0 2px; }
+.library .brand-logo { height: 38px; margin-right: 6px; }
+.ask-title { display: inline-flex; align-items: center; gap: 8px; }
+.ask-mark { width: 22px; height: 22px; }
+@media (max-width: 699px) { .brand-logo { height: 28px; } }

@@ -1,0 +1,91 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [4 0 R 6 0 R 8 0 R] /Count 3 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>
+endobj
+5 0 obj
+<< /Length 655 >>
+stream
+BT /F1 13 Tf 60 762 Td (1. The value of sin 30° is) Tj ET
+BT /F1 12 Tf 90 732 Td (\(a\) 0) Tj ET
+BT /F1 12 Tf 90 708 Td (\(b\) 1/2) Tj ET
+BT /F1 12 Tf 90 684 Td (\(c\) 1) Tj ET
+BT /F1 12 Tf 90 660 Td (\(d\) 2) Tj ET
+BT /F1 13 Tf 60 596 Td (2. If 2x + 3 = 11, then x is) Tj ET
+BT /F1 12 Tf 90 566 Td (\(a\) 3) Tj ET
+BT /F1 12 Tf 90 542 Td (\(b\) 4) Tj ET
+BT /F1 12 Tf 90 518 Td (\(c\) 5) Tj ET
+BT /F1 12 Tf 90 494 Td (\(d\) 7) Tj ET
+BT /F1 13 Tf 60 430 Td (3. The value of tan 45° is) Tj ET
+BT /F1 12 Tf 90 400 Td (\(a\) 0) Tj ET
+BT /F1 12 Tf 90 376 Td (\(b\) 1) Tj ET
+BT /F1 12 Tf 90 352 Td (\(c\) 2) Tj ET
+BT /F1 12 Tf 90 328 Td (\(d\) not defined) Tj ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >>
+endobj
+7 0 obj
+<< /Length 666 >>
+stream
+BT /F1 13 Tf 60 762 Td (4. The HCF of 12 and 18 is) Tj ET
+BT /F1 12 Tf 90 732 Td (\(a\) 2) Tj ET
+BT /F1 12 Tf 90 708 Td (\(b\) 3) Tj ET
+BT /F1 12 Tf 90 684 Td (\(c\) 6) Tj ET
+BT /F1 12 Tf 90 660 Td (\(d\) 36) Tj ET
+BT /F1 13 Tf 60 596 Td (5. The roots of x² - 5x + 6 = 0 are) Tj ET
+BT /F1 12 Tf 90 566 Td (\(a\) 1, 6) Tj ET
+BT /F1 12 Tf 90 542 Td (\(b\) 2, 3) Tj ET
+BT /F1 12 Tf 90 518 Td (\(c\) -2, -3) Tj ET
+BT /F1 12 Tf 90 494 Td (\(d\) 1, 5) Tj ET
+BT /F1 13 Tf 60 430 Td (6. The value of 5! is) Tj ET
+BT /F1 12 Tf 90 400 Td (\(a\) 25) Tj ET
+BT /F1 12 Tf 90 376 Td (\(b\) 60) Tj ET
+BT /F1 12 Tf 90 352 Td (\(c\) 100) Tj ET
+BT /F1 12 Tf 90 328 Td (\(d\) 120) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 9 0 R >>
+endobj
+9 0 obj
+<< /Length 449 >>
+stream
+BT /F1 13 Tf 60 762 Td (7. The value of cos 60° is) Tj ET
+BT /F1 12 Tf 90 732 Td (\(a\) 1/2) Tj ET
+BT /F1 12 Tf 90 708 Td (\(b\) 1) Tj ET
+BT /F1 12 Tf 90 684 Td (\(c\) 0) Tj ET
+BT /F1 12 Tf 90 660 Td (\(d\) 2) Tj ET
+BT /F1 13 Tf 60 596 Td (8. \(a + b\)² equals) Tj ET
+BT /F1 12 Tf 90 566 Td (\(a\) a² + b²) Tj ET
+BT /F1 12 Tf 90 542 Td (\(b\) a² + 2ab + b²) Tj ET
+BT /F1 12 Tf 90 518 Td (\(c\) 2ab) Tj ET
+BT /F1 12 Tf 90 494 Td (\(d\) a² - b²) Tj ET
+endstream
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000127 00000 n 
+0000000224 00000 n 
+0000000350 00000 n 
+0000001056 00000 n 
+0000001182 00000 n 
+0000001899 00000 n 
+0000002025 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R >>
+startxref
+2525
+%%EOF
