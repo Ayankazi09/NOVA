@@ -87,7 +87,7 @@ export function ReadbackLayer({ page, view, phases, selectedRegionId, onAccept, 
                 {/[yY]/.test(reading.acceptedText ?? '') && /[xXθ]/.test(reading.acceptedText ?? '') && (
                   <button className="rb-action" onClick={() => onQuick(region.id, 'plot')}><Icon.graph /> Graph</button>
                 )}
-                {/[=<>≤≥]/.test(reading.acceptedText ?? '') && !(reading.acceptedText ?? '').trim().endsWith('=') && /[a-zθ]/i.test(reading.acceptedText ?? '') && !/[yY]/.test(reading.acceptedText ?? '') && (
+                {(reading.acceptedText ?? '').trim() && (
                   <button className="rb-action" onClick={() => onQuick(region.id, 'solve')}>Solve</button>
                 )}
                 <button className="rb-action" onClick={() => onQuick(region.id, 'ask')}><Icon.ask /> Ask</button>

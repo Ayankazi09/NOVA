@@ -72,3 +72,22 @@ describe('problem detection', () => {
     expect(isEquationInX(text)).toBe(expected)
   })
 })
+
+describe('erasing removes what NOVA attached', () => {
+  it('drops answers, bubbles and circles of an erased line, and page notes when the page is wiped', () => {
+    let { state, pageId } = setup()
+    const s1 = stroke(line(100, 200, 160, 260), 1000)
+    state = add(state, pageId, s1)
+    const rid = state.doc.pages[pageId].regions[0].id
+    const base = { requestId: 'q', batchId: 'b', sourceHash: state.doc.pages[pageId].regions[0].sourceHash, createdAt: 1, author: 'tutor' as const, status: 'active' as const, layout: { x: 0, y: 0, w: 10, h: 10, leader: false } }
+    const page = state.doc.pages[pageId]
+    state = { ...state, doc: { ...state.doc, pages: { ...state.doc.pages, [pageId]: { ...page, tutorObjects: [
+      { ...base, id: 'ans', anchorRegionId: rid, action: { id: 'ans', type: 'write_ink', anchorRegionId: rid, text: '5', strokes: [], width: 3, purpose: 'answer', verified: true, tone: 'nova' } },
+      { ...base, id: 'bubble', anchorRegionId: 'page', action: { id: 'bubble', type: 'write_ink', anchorRegionId: 'page', text: "can't solve", strokes: [], width: 3, purpose: 'completion', verified: false, tone: 'nova' } },
+      { ...base, id: 'table', anchorRegionId: 'page', action: { id: 'table', type: 'write_ink', anchorRegionId: 'page', text: 'sin | cos', strokes: [], width: 3, purpose: 'content', verified: true, tone: 'nova' } },
+    ] } } } } as DocState
+    state = docReducer(state, { type: 'eraseStrokes', pageId, ids: [s1.id] })
+    const st = Object.fromEntries(state.doc.pages[pageId].tutorObjects.map((t) => [t.id, t.status]))
+    expect(st).toEqual({ ans: 'dismissed', bubble: 'dismissed', table: 'active' })
+  })
+})

@@ -146,7 +146,7 @@ export function useNova(o: Options) {
     const now = page()
     const cur = now?.regions.find((r) => r.id === regionId)
     if (!now || !cur || cur.sourceHash !== sourceHash || res.kind === 'none') return false
-    if (force && res.kind !== 'solution') return false // the Solve button wants a worked solution; let the tutor handle the rest
+    // (the Solve button takes any answer, mark or worked solution NOVA can give)
     const id = `auto:${regionId}:${sourceHash}`
     if (res.kind === 'solution' && res.steps?.length) {
       // the whole worked solution, one step per line, under the student's line in their style
@@ -551,13 +551,29 @@ export function useNova(o: Options) {
   }, [])
 
   /** The Solve button: a linear equation gets the explained solution (arrows, red moves, notes); anything else goes to the tutor. */
+  /** One tap on Solve does everything: read the line if needed, graph a graph, otherwise write the worked answer. */
   const solveHere = useCallback(async (regionId: string) => {
-    const p = page()
-    const region = p?.regions.find((r) => r.id === regionId)
-    if (region && readingText(p?.readings[regionId])) {
-      // replace an earlier answer on this line with the full working
-      if (await react(regionId, region.sourceHash, true)) return
+    setStatus({ state: 'working', anchorRegionId: regionId, message: 'Solving…' })
+    try {
+      let p = page()
+      if (!readingText(p?.readings[regionId])) {
+        await ensureReading(regionId) // not read yet: read it now instead of making the student tap twice
+        p = page()
+      }
+      const region = p?.regions.find((r) => r.id === regionId)
+      const text = readingText(p?.readings[regionId]) ?? ''
+      if (/[yY]/.test(text) && /[xXθ]/.test(text) && /=/.test(text) && !/[∪∩∈]/.test(text)) {
+        setStatus({ state: 'idle' })
+        return void ask('plot', '', regionId)
+      }
+      if (region && text && (await react(regionId, region.sourceHash, true))) {
+        setStatus({ state: 'idle' })
+        return
+      }
+    } catch {
+      /* fall through to the tutor */
     }
+    setStatus({ state: 'idle' })
     await ask('solve', '', regionId)
   }, [react, ask])
 

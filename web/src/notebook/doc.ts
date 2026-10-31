@@ -215,10 +215,17 @@ function reconcile(page: Page): Page {
     const ptext = pr?.acceptedText
     if (!ptext || ptext !== reading.check.problemText) readings[rid] = { ...reading, check: undefined }
   }
+  const emptyPage = page.strokes.length === 0
   const tutorObjects = page.tutorObjects.map((t) => {
-    if (t.status !== 'active' || t.anchorRegionId === 'page') return t // page-level content is not tied to one line
+    if (t.status === 'dismissed') return t
+    if (t.anchorRegionId === 'page') {
+      // page-level notes go when the page is wiped; written content (tables, formulas) stays
+      const content = t.action.type === 'write_ink' && t.action.purpose === 'content'
+      return emptyPage && !content ? { ...t, status: 'dismissed' as const } : t
+    }
     const r = byId.get(t.anchorRegionId)
-    return !r || r.sourceHash !== t.sourceHash ? { ...t, status: 'stale' as const } : t
+    if (!r) return { ...t, status: 'dismissed' as const } // the line was erased: everything NOVA put on it goes too
+    return t.status === 'active' && r.sourceHash !== t.sourceHash ? { ...t, status: 'stale' as const } : t
   })
   const problemRegionId = page.problemRegionId && byId.has(page.problemRegionId) ? page.problemRegionId : undefined
   return { ...page, regions, readings, tutorObjects, problemRegionId }
