@@ -67,7 +67,7 @@ export function NotebookScreen({ state, dispatch, settings, setSettings, saveSta
   const page = doc.pages[pageId]
   const pageIndex = nb.orderedPageIds.indexOf(pageId)
   const { w: vw, h: vh } = useViewport()
-  const phone = vw < 700 || (vw < 1000 && vh < 500)
+  const phone = vw < 700 || Math.min(vw, vh) < 500 || (vw < 1000 && vh < 560)
   const desktop = vw >= 1100 && vh >= 600
 
   const [tool, setTool] = useState<Tool>('pen')

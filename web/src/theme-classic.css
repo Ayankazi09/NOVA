@@ -571,3 +571,4 @@ body { background: var(--workspace); }
   .ink-tag:hover, .ink-tag:focus-visible { opacity: 1; }
 }
 @media (hover: none) { .ink-tag { display: none; } }
+.dock { overflow: visible !important; position: relative; z-index: 30; } /* the ⋯ menu opens upward out of the bar: never clip it */

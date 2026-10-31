@@ -710,8 +710,8 @@ def _verify_lines(lines: list[str]) -> list[dict]:
 
 def _cell_expr(fn: str, arg: str) -> str:
     fn, arg = fn.strip(), arg.strip()
-    if re.search(r"θ|theta|x", fn):
-        return re.sub(r"θ|theta|x", f"({arg})", fn)
+    if re.search(r"θ|theta|\bx\b", fn):
+        return re.sub(r"θ|theta|\bx\b", f"({arg})", fn)
     return f"{fn} ({arg})"
 
 

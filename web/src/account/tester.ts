@@ -29,16 +29,20 @@ export function signOutTester() {
 
 export async function registerTester(name: string): Promise<Tester> {
   const t: Tester = { id: crypto.randomUUID(), name: name.trim().slice(0, 60) }
+  // record the sign-up in the background: never make a tester wait on the network
+  void (async () => {
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/testers`, {
       method: 'POST',
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
       body: JSON.stringify({ id: t.id, name: t.name, user_agent: navigator.userAgent.slice(0, 300) }),
+      keepalive: true,
     })
     if (!res.ok) console.warn('tester registration failed', res.status)
   } catch (e) {
-    console.warn('tester registration failed', e) // never block testing on the sign-up record
+    console.warn('tester registration failed', e)
   }
+  })()
   try {
     localStorage.setItem(KEY, JSON.stringify(t))
   } catch {

@@ -62,6 +62,9 @@ function sameContext(a: RequestContext, b: RequestContext) {
   return (Object.keys(a) as (keyof RequestContext)[]).every((k) => a[k] === b[k])
 }
 
+/** "x = ?", "x =", "f'(2) = ?", "find x", "derive …": a question about the problem above. */
+const isQuestion = (t: string) => /\?|^\s*[a-zθ]\s*=\s*$|^\s*(find|solve|derive|prove|show|hence|evaluate|differentiate|integrate|simplify)\b/i.test(t)
+
 /** Is this line a working step under the problem (just below it, things moved across "="), or a new question? */
 function isWorkingStep(page: Page, problemId: string, line: { bounds: Rect }, text: string): boolean {
   const pr = page.regions.find((r) => r.id === problemId)
@@ -150,7 +153,7 @@ export function useNova(o: Options) {
     if (!p || !region || region.sourceHash !== sourceHash || !text) return false
     if (Object.values(opts.current.stateRef.current!.doc.tests ?? {}).some((t) => t.status !== 'finished' && t.pageIds.includes(p.id))) return false // it's a test
     let problemId = p.problemRegionId && p.problemRegionId !== regionId ? p.problemRegionId : undefined
-    if (problemId && !force && !isWorkingStep(p, problemId, region, text)) {
+    if (problemId && !force && !isQuestion(text) && !isWorkingStep(p, problemId, region, text)) {
       // a fresh question (somewhere else, or in the same starting form): it is the new problem, solve it
       opts.current.dispatch({ type: 'setProblem', pageId: p.id, regionId })
       problemId = undefined
@@ -158,7 +161,7 @@ export function useNova(o: Options) {
     const problemText = problemId ? p.readings[problemId]?.acceptedText : undefined
     let res
     try {
-      res = await api.auto({ context: makeContext(p, region, p.readings[regionId]), text, problem: force ? null : (problemText ?? null), autoAnswer: force || opts.current.autoAnswer })
+      res = await api.auto({ context: makeContext(p, region, p.readings[regionId]), text, problem: force && !isQuestion(text) ? null : (problemText ?? null), autoAnswer: force || opts.current.autoAnswer })
     } catch {
       return false // the reading is still shown; reacting is a bonus
     }
@@ -168,6 +171,11 @@ export function useNova(o: Options) {
     if (!now || !cur || cur.sourceHash !== sourceHash || res.kind === 'none') return false
     // (the Solve button takes any answer, mark or worked solution NOVA can give)
     const id = `auto:${regionId}:${sourceHash}`
+    // "x =" / "x = ?" under a problem NOVA already worked out: just write the value next to the question
+    if (res.kind === 'solution' && problemId && isQuestion(text) && res.answer && now.tutorObjects.some((t) => t.anchorRegionId === problemId && t.status === 'active' && t.action.type === 'write_ink' && t.action.purpose === 'completion')) {
+      const value = res.answer.includes('=') ? res.answer.split('=').pop()!.trim() : res.answer
+      res = { ...res, kind: 'answer', answer: value }
+    }
     if (res.kind === 'solution' && res.steps?.length) {
       // the whole worked solution, one step per line, under the student's line in their style
       const style = styleFromRegion(now, cur)
@@ -182,7 +190,9 @@ export function useNova(o: Options) {
         const st = { ...style, height: style.height * 0.85 }
         const moves = res.steps.map((_, i) => res.moves?.[i] ?? null)
         const notes = res.steps.map((_, i) => res.notes?.[i] ?? '')
-        const src = { text, bounds: cur.bounds }
+        // a question line ("x = ?") is answered from the problem above: arrows start in the problem
+        const pr = problemId && isQuestion(text) ? now.regions.find((r) => r.id === problemId) : undefined
+        const src = pr && problemText ? { text: problemText, bounds: pr.bounds } : { text, bounds: cur.bounds }
         const gap = style.height * 0.6 // room for the first arrow under the student's line
         const narrow = window.innerWidth < 700 ? window.innerWidth - 90 : undefined // phone: keep the notes on screen
         const probe = composeExplained(res.steps, notes, moves, { text: '', bounds: src.bounds }, { x: 0, y: 0 }, st, getLibrary(), narrow) // size only: no arrow back to the line

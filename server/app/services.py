@@ -628,8 +628,8 @@ async def tutor(req: TutorRequest) -> TutorResponse:
 
 
 _TASK = re.compile(
-    r"=|\?|∪|∩|∈|⊂|⊆|∫|∑|lim|d/d|'|′|(find|solve|evaluate|simplify|factori[sz]e|expand|differentiate|derivative|integrate|"
-    r"prove|sum|series|sequence|term|AP|GP|probability|mean|median|mode|variance|matrix|det|log|ln|nCr|nPr|union|intersection)",
+    r"=|\?|…|\.\.\.|∪|∩|∈|⊂|⊆|∫|∑|lim|d/d|'|′|\b(derive|show|hence|verify|calculate|compute|find|solve|evaluate|simplify|factori[sz]e|expand|differentiate|derivative|integrate|"
+    r"prove|sum|series|sequence|term|AP|GP|probability|mean|median|mode|variance|matrix|det|log|ln|nCr|nPr|union|intersection)\b",
     re.I,
 )
 
@@ -648,14 +648,36 @@ async def solve_any(text: str, problem: str | None) -> dict | None:
         return None
     notes = [(clean_math(x, 60) if isinstance(x, str) else "") for x in (obj.get("notes") or [])][: len(steps)]
     notes += [""] * (len(steps) - len(notes))
+    keep = [i for i, st in enumerate(steps) if i == 0 or _norm_reading(st) != _norm_reading(steps[i - 1])]  # no repeated lines
+    steps, notes = [steps[i] for i in keep], [notes[i] for i in keep]
     notes[-1] = notes[-1] or "answer"
     return {"kind": "solution", "steps": steps, "notes": notes, "moves": [None] * len(steps), "answer": clean_math(obj.get("answer"), 80) or steps[-1], "message": "Solved by NOVA."}
 
 
+_QUESTION = re.compile(
+    r"\?|^\s*[a-zθ](\s*\(\s*\w+\s*\))?\s*=\s*$|^\s*(f|g|h)\s*['′]+.*=\s*\??\s*$|^\s*d\s*[a-z]?\s*/\s*d\s*[a-z].*=\s*\??\s*$"
+    r"|^\s*(find|solve|derive|prove|show|simplify|hence|evaluate|differentiate|integrate|factori[sz]e)\b",
+    re.I,
+)
+
+
+async def _answer_question(q: str, problem: str) -> dict:
+    """A question written under a problem: solve the problem (exact working with arrows when possible)."""
+    target = re.match(r"^\s*([a-zθ])\s*=\s*\??\s*$", q, re.I)
+    if target or re.match(r"^\s*(find|solve)\b", q, re.I):
+        exact = await _auto_exact(problem, None, True)
+        if exact.get("kind") == "solution":
+            return exact
+    return await solve_any(q, problem) or {"kind": "none"}
+
+
 async def auto(text: str, problem: str | None, auto_answer: bool) -> dict:
     """Exact maths first; if that can't help and the line is a question, NOVA's maths model solves it."""
-    res = await _auto_exact(text, problem, auto_answer)
     t = re.sub(r"\s+", " ", text).strip()
+    if problem and auto_answer and _QUESTION.search(t):
+        # "x = ?", "x =", "f'(2) = ?", "dy/dx =", "find x", "derive ..." under a problem: answer it from the problem
+        return await _answer_question(t, problem)
+    res = await _auto_exact(text, problem, auto_answer)
     if res.get("kind") != "none" or not auto_answer or res.get("suggest") == "graph" or not _TASK.search(t):
         return res
     return await solve_any(t, problem) or res
