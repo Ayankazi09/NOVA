@@ -20,7 +20,7 @@ from .maths.linear import MathError, check_step, fmt, is_isolated, parse_equatio
 from .maths.solve import SolveError, run as solve_run, tokenize as solve_tokenize, verify_content
 from .maths.steps import explained_steps, next_step, solution_steps
 from .providers.bharatcode import parse_json_object, provider
-from .providers.prompts import EXAM_NOTE, EXAM_REVIEW, PAPER_INSTRUCTIONS, RECOGNIZE_INSTRUCTIONS, RECOGNIZE_USER, TUTOR_INSTRUCTIONS
+from .providers.prompts import SOLVE_ANY_INSTRUCTIONS, EXAM_NOTE, EXAM_REVIEW, PAPER_INSTRUCTIONS, RECOGNIZE_INSTRUCTIONS, RECOGNIZE_USER, TUTOR_INSTRUCTIONS
 from .schemas.models import (
     Action,
     CheckResponse,
@@ -627,7 +627,41 @@ async def tutor(req: TutorRequest) -> TutorResponse:
     return done(explanation, actions, check=check, verified="deterministic" if check else "model", model=model)
 
 
+_TASK = re.compile(
+    r"=|\?|∪|∩|∈|⊂|⊆|∫|∑|lim|d/d|'|′|(find|solve|evaluate|simplify|factori[sz]e|expand|differentiate|derivative|integrate|"
+    r"prove|sum|series|sequence|term|AP|GP|probability|mean|median|mode|variance|matrix|det|log|ln|nCr|nPr|union|intersection)",
+    re.I,
+)
+
+
+async def solve_any(text: str, problem: str | None) -> dict | None:
+    """Anything the exact engine can't do (functions, calculus, series, sets, ...): NOVA's maths model writes the worked solution."""
+    user = f"STUDENT LINE: {text}" + (f"\nPROBLEM THEY ARE WORKING ON: {problem}" if problem and problem != text else "")
+    try:
+        reply = await provider.generate(SOLVE_ANY_INSTRUCTIONS, user, max_tokens=1500, effort="low")
+        obj = parse_json_object(reply.text)
+    except Exception as e:  # never break the page over a bonus answer
+        log.warning("solve_any failed: %s", type(e).__name__)
+        return None
+    steps = [clean_math(x, 60) for x in (obj.get("steps") or []) if isinstance(x, str) and clean_math(x, 60)][:8]
+    if not steps:
+        return None
+    notes = [(clean_math(x, 60) if isinstance(x, str) else "") for x in (obj.get("notes") or [])][: len(steps)]
+    notes += [""] * (len(steps) - len(notes))
+    notes[-1] = notes[-1] or "answer"
+    return {"kind": "solution", "steps": steps, "notes": notes, "moves": [None] * len(steps), "answer": clean_math(obj.get("answer"), 80) or steps[-1], "message": "Solved by NOVA."}
+
+
 async def auto(text: str, problem: str | None, auto_answer: bool) -> dict:
+    """Exact maths first; if that can't help and the line is a question, NOVA's maths model solves it."""
+    res = await _auto_exact(text, problem, auto_answer)
+    t = re.sub(r"\s+", " ", text).strip()
+    if res.get("kind") != "none" or not auto_answer or res.get("suggest") == "graph" or not _TASK.search(t):
+        return res
+    return await solve_any(t, problem) or res
+
+
+async def _auto_exact(text: str, problem: str | None, auto_answer: bool) -> dict:
     """What NOVA does by itself with a freshly read line (no model): answer it, mark it, or leave it."""
     t = re.sub(r"\s+", " ", text).strip()
     if t.endswith("="):
@@ -675,6 +709,8 @@ async def auto(text: str, problem: str | None, auto_answer: bool) -> dict:
             if fact.status == "answered" and fact.kind == "factorised" and fact.answer:
                 steps.append(f"{fact.answer} = 0")
             steps.append(r.answer)
+            notes = (["factorise the left side", "each bracket = 0 gives a value of x"] if len(steps) == 2 else ["answer"])
+            moves = [None] * len(steps)
         return {"kind": "solution", "steps": steps[:10], "notes": notes[:10], "moves": moves[:10], "answer": r.answer, "message": "Solved exactly by NOVA." + (f" ({r.note})" if r.note else "")}
     return {"kind": "none"}
 

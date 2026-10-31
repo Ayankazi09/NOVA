@@ -268,3 +268,16 @@ body { background: var(--workspace); }
 .tester-chip { font-size: 14px; color: var(--text-2); white-space: nowrap; }
 .tester-chip button { margin-left: 6px; }
 @media (max-width: 699px) { .hide-phone { display: none !important; } }
+
+/* outdated NOVA ink (the line changed) is removed from view: no faded clutter */
+.nova-ink.stale, .ink-tag.stale, .tutor-card.stale, .hl.stale, .hl-tag.stale { display: none; }
+
+/* ---- tester welcome: just the grid, the logo, a welcome line, the name box and the button */
+.welcome { min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 24px 16px; background-color: #fff; background-image: linear-gradient(#e8ecf0 1px, transparent 1px), linear-gradient(90deg, #e8ecf0 1px, transparent 1px); background-size: 24px 24px; }
+.welcome-card { all: unset; width: 100%; max-width: 420px; display: flex; flex-direction: column; align-items: center; gap: 22px; text-align: center; }
+.welcome-logo { height: 92px; width: auto; margin: 0; }
+.welcome-card h1 { margin: 0; font-size: 26px; font-weight: 700; color: var(--text); }
+.welcome-card input { width: 100%; box-sizing: border-box; height: 52px; border: 1.5px solid var(--rule-2); border-radius: 12px; padding: 0 16px; font-size: 18px; font-family: inherit; text-align: center; background: #fff; }
+.welcome-card input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.welcome-card .btn.big { width: 100%; justify-content: center; height: 52px; margin: 0; }
+.welcome-card .welcome-logo { align-self: center; }

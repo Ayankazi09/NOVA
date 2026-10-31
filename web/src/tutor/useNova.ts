@@ -151,11 +151,13 @@ export function useNova(o: Options) {
     if (res.kind === 'solution' && res.steps?.length) {
       // the whole worked solution, one step per line, under the student's line in their style
       const style = styleFromRegion(now, cur)
-      const others = { ...now, tutorObjects: now.tutorObjects.filter((t) => t.anchorRegionId !== regionId), regions: now.regions.filter((r) => r.id !== regionId) }
+      // older answers for this line are cleared below; everything else NOVA wrote is an obstacle (no overlaps)
+      const others = { ...now, tutorObjects: now.tutorObjects.filter((t) => !(t.anchorRegionId === regionId && t.status !== 'active')), regions: now.regions.filter((r) => r.id !== regionId) }
+      for (const t of now.tutorObjects) if (t.anchorRegionId === regionId && t.status === 'active' && t.action.type === 'write_ink' && !t.id.startsWith(id)) opts.current.dispatch({ type: 'dismissTutor', pageId: now.id, id: t.id })
       let strokes: [number, number][][]
       let colors: string[] | undefined
       let notesObj: TutorObject | undefined
-      if (res.moves?.some(Boolean)) {
+      if (res.moves?.some(Boolean) || res.notes?.some((n) => n && n !== 'answer')) {
         // beginner view: what crossed "=" is red, with an arrow from where it was to where it went, and why
         const st = { ...style, height: style.height * 0.85 }
         const moves = res.steps.map((_, i) => res.moves?.[i] ?? null)
