@@ -10,6 +10,7 @@ from PIL import Image, ImageDraw, ImageFont
 from pydantic import BaseModel
 
 from .. import services
+from ..images import decode_png
 from ..config import (
     MAX_ACTIONS, MAX_AUDIO_BYTES, MAX_AUDIO_SECONDS, MAX_EQUATION_CHARS, MAX_HISTORY_TURNS, MAX_PNG_BYTES, MAX_PNG_EDGE,
     MAX_QUESTION_CHARS, MAX_TURN_CHARS, settings,
@@ -158,7 +159,8 @@ async def paper_grade(req: GradeRequest) -> list[GradeResult]:
 @router.post("/auto", response_model=AutoResponse)
 async def auto(req: AutoRequest) -> AutoResponse:
     """Model-free reaction to a freshly read line: write the answer, mark it right/wrong, or do nothing."""
-    r = await services.auto(req.text, req.problem, req.autoAnswer)
+    diagram = decode_png(req.diagramPng, "diagramPng", str(req.context.requestId)) if req.diagramPng else None
+    r = await services.auto(req.text, req.problem, req.autoAnswer, diagram)
     return AutoResponse(context=req.context, **r)
 
 

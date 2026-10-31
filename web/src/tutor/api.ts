@@ -157,7 +157,7 @@ export const api = {
   check: (body: { context: RequestContext; problem: string; current: string; confirmed: boolean }) =>
     call<{ status: CheckResult['status']; message: string; problemSolution?: string; currentSolution?: string; context: RequestContext }>('/api/v1/check', json(body)),
   plot: (body: { context: RequestContext; expression: string }) => call<{ plot: PlotData; context: RequestContext }>('/api/v1/plot', json(body)),
-  auto: (body: { context: RequestContext; text: string; problem?: string | null; autoAnswer: boolean }, signal?: AbortSignal) =>
+  auto: (body: { context: RequestContext; text: string; problem?: string | null; autoAnswer: boolean; diagramPng?: string }, signal?: AbortSignal) =>
     call<{ context: RequestContext; kind: 'answer' | 'mark' | 'solution' | 'none'; verdict: 'correct' | 'incorrect' | 'equivalent' | 'different' | 'solved' | 'none'; answer?: string | null; steps?: string[]; notes?: string[]; moves?: ({ find: string; becomes: string } | null)[]; suggest?: 'graph' | 'solve' | 'none'; message?: string | null }>('/api/v1/auto', json(body), signal),
   paperAnalyze: (body: { requestId: string; pageIndex: number; png: string; lines: { id: string; text: string }[] }) =>
     call<{ pageIndex: number; latencyMs: number; questions: { number: string; text: string; lineIds: string[]; bbox: number[]; kind: string; options: string[]; answer: string; answerVerified: boolean; corrected: boolean }[] }>('/api/v1/paper/analyze', json(body)),

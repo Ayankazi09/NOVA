@@ -259,6 +259,7 @@ class AutoRequest(Strict):
     text: Annotated[str, Field(min_length=1, max_length=200)]
     problem: Annotated[str | None, Field(max_length=200)] = None
     autoAnswer: bool = True
+    diagramPng: Annotated[str | None, Field(max_length=1_400_000)] = None  # the student's drawing near the question (geometry)
 
 
 class AutoResponse(BaseModel):

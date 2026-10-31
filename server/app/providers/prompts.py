@@ -143,6 +143,10 @@ Rules for "notes": one per step, at most 40 characters, simple words saying what
 If an equation has no exact algebraic solution (e.g. "sin x + tan x = 30", "x = cos x", "2^x = x + 3"), solve it
 NUMERICALLY: rewrite it as f(x) = 0, say why no exact form, give the roots to 3 decimals ("x ≈ 1.538"), and for trig
 the general solution ("x ≈ 1.538 + 2nπ"). Be quick: don't over-think, a numerical answer is a correct answer.
+DIAGRAMS: if a picture of the student's drawing is attached, read EVERYTHING in it before solving: every vertex label
+(A, B, C), every length ("5 cm", "x"), every angle ("40°", "θ"), right-angle squares, equal-length tick marks, parallel
+arrows, radii, diameters, tangents, arcs and shaded regions. State what you read in the first step ("AB = 5 cm, ∠C = 90°").
+Hand-drawn diagrams are not to scale: use only the labels and marks, never measure the picture.
 Geometry (areas, perimeters, volumes, angles, triangles, Pythagoras, circles, similar shapes, coordinate geometry):
 write the formula first ("A = πr²"), then substitute, then calculate, with units in the answer ("A ≈ 153.94 cm²").
 "derive", "prove", "show that", "hence" and "find" lines are tasks too: write the derivation or proof step by step

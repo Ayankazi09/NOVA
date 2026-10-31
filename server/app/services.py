@@ -176,6 +176,8 @@ async def recognize(req: RecognizeRequest) -> RecognizeResponse:
     alts = alts[:3]
     if status == "incomplete":
         needs = False  # still being written: read it again when it is finished, don't interrupt
+    if len(_norm_reading(raw)) <= 3 and "=" not in raw:
+        needs = False  # a label on a diagram ("x", "A", "6", "40°"): never worth interrupting the student
     if needs and not alts:
         needs = bool(ok[0].get("needsClarification")) and len(ok) == 1
     note = {
@@ -640,16 +642,16 @@ async def tutor(req: TutorRequest) -> TutorResponse:
 
 _TASK = re.compile(
     r"=|\?|…|\.\.\.|∪|∩|∈|⊂|⊆|∫|∑|lim|d/d|'|′|\b(derive|show|hence|verify|calculate|compute|find|solve|evaluate|simplify|factori[sz]e|expand|differentiate|derivative|integrate|"
-    r"prove|sum|series|sequence|term|AP|GP|area|perimeter|volume|surface|radius|diameter|circumference|circle|triangle|square|rectangle|polygon|angle|hypotenuse|pythagoras|sector|arc|chord|tangent|cone|cylinder|sphere|cube|cm|m2|probability|mean|median|mode|variance|matrix|det|log|ln|nCr|nPr|union|intersection)\b",
+    r"prove|sum|series|sequence|term|AP|GP|area|perimeter|volume|surface|radius|diameter|circumference|circle|triangle|square|rectangle|polygon|angle|hypotenuse|pythagoras|sector|arc|chord|tangent|cone|cylinder|sphere|cube|probability|mean|median|mode|variance|matrix|det|log|ln|nCr|nPr|union|intersection)\b",
     re.I,
 )
 
 
-async def solve_any(text: str, problem: str | None) -> dict | None:
+async def solve_any(text: str, problem: str | None, diagram: str | None = None) -> dict | None:
     """Anything the exact engine can't do (functions, calculus, series, sets, ...): NOVA's maths model writes the worked solution."""
-    user = f"STUDENT LINE: {text}" + (f"\nPROBLEM THEY ARE WORKING ON: {problem}" if problem and problem != text else "")
+    user = ("A picture of the student's DIAGRAM (and the question beside it) is attached: read it carefully.\n" if diagram else "") + f"STUDENT LINE: {text}" + (f"\nPROBLEM THEY ARE WORKING ON: {problem}" if problem and problem != text else "")
     try:
-        reply = await provider.generate(SOLVE_ANY_INSTRUCTIONS, user, max_tokens=6000, effort="low")
+        reply = await provider.generate(SOLVE_ANY_INSTRUCTIONS, user, [diagram] if diagram else None, max_tokens=6000, effort="low")
         obj = parse_json_object(reply.text)
     except Exception as e:  # never break the page over a bonus answer
         log.warning("solve_any failed: %s", type(e).__name__)
@@ -672,6 +674,11 @@ _QUESTION = re.compile(
 )
 
 
+def _plain_equation(t: str) -> bool:
+    """3x + 2 = 10, 7/2 + 3/2 = : maths the exact engine handles on its own, even with a drawing nearby."""
+    return bool(re.fullmatch(r"[\d\s.+\-*/^()=xX]+", t)) and "=" in t and bool(re.search(r"\d", t))
+
+
 async def _answer_question(q: str, problem: str) -> dict:
     """A question written under a problem: solve the problem (exact working with arrows when possible)."""
     target = re.match(r"^\s*([a-zθ])\s*=\s*\??\s*$", q, re.I)
@@ -682,16 +689,21 @@ async def _answer_question(q: str, problem: str) -> dict:
     return await solve_any(q, problem) or {"kind": "none"}
 
 
-async def auto(text: str, problem: str | None, auto_answer: bool) -> dict:
+async def auto(text: str, problem: str | None, auto_answer: bool, diagram: str | None = None) -> dict:
     """Exact maths first; if that can't help and the line is a question, NOVA's maths model solves it."""
     t = re.sub(r"\s+", " ", text).strip()
+    if diagram and auto_answer and (_TASK.search(t) or _QUESTION.search(t)) and not _plain_equation(t):
+        # a question next to a drawing (geometry): the exact engine can't see diagrams, the model reads it
+        solved = await solve_any(t, problem, diagram)
+        if solved:
+            return solved
     if problem and auto_answer and _QUESTION.search(t):
         # "x = ?", "x =", "f'(2) = ?", "dy/dx =", "find x", "derive ..." under a problem: answer it from the problem
         return await _answer_question(t, problem)
     res = await _auto_exact(text, problem, auto_answer)
     if res.get("kind") != "none" or not auto_answer or res.get("suggest") == "graph" or not _TASK.search(t):
         return res
-    return await solve_any(t, problem) or res
+    return await solve_any(t, problem, diagram) or res
 
 
 async def _auto_exact(text: str, problem: str | None, auto_answer: bool) -> dict:

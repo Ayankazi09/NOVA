@@ -3,10 +3,11 @@
 // no active pen stroke, and the latest request generation.
 
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type RefObject } from 'react'
-import { isEquationInX, isTinyRegion, readingText, type DocAction, type DocState } from '../notebook/doc'
+import { isEquationInX, isTinyRegion, readingText, type DocAction, type DocState, isLargeStroke } from '../notebook/doc'
 import { uuid } from '../notebook/ids'
 import type { Page, Reading, Rect, Region, TutorAction, TutorObject, Turn } from '../notebook/types'
 import { renderRegion } from '../recognition/render'
+import { inflate, intersects, strokeBounds, union } from '../notebook/geometry'
 import { RecognitionScheduler, type ReadPhase } from '../recognition/scheduler'
 import { speak, stopSpeaking } from '../voice/speech'
 import { ApiFailure, api, type RequestContext, type TutorPayload, type TutorResult } from './api'
@@ -60,6 +61,27 @@ async function waitFor(cond: () => boolean, ms = 1500) {
 
 function sameContext(a: RequestContext, b: RequestContext) {
   return (Object.keys(a) as (keyof RequestContext)[]).every((k) => a[k] === b[k])
+}
+
+/**
+ * A drawing near this line (triangle, circle, angles, labelled sides): render it with its labels and the line itself,
+ * so the model can read the diagram. Plain lines of writing are not diagrams.
+ */
+async function diagramNear(page: Page, line: Region): Promise<string | undefined> {
+  const near = (r: Rect) => {
+    const dx = Math.max(0, r.x - (line.bounds.x + line.bounds.w), line.bounds.x - (r.x + r.w))
+    const dy = Math.max(0, r.y - (line.bounds.y + line.bounds.h), line.bounds.y - (r.y + r.h))
+    return Math.hypot(dx, dy) < 700
+  }
+  const isDrawing = (r: Region) => r.id !== line.id && (isLargeStroke(r.bounds) || r.bounds.h > 170 || page.readings[r.id]?.status === 'none')
+  const drawings = page.regions.filter((r) => isDrawing(r) && near(r.bounds))
+  if (!drawings.length) return undefined
+  let area = union([line.bounds, ...drawings.map((r) => r.bounds)])
+  // the labels written on and around the drawing belong to it ("5 cm", "x", "40°", "A")
+  area = union([area, ...page.regions.filter((r) => intersects(inflate(area, 40), r.bounds)).map((r) => r.bounds)])
+  const ids = page.strokes.filter((s) => intersects(inflate(area, 4), strokeBounds(s))).map((s) => s.id)
+  const img = await renderRegion(page, ids, area)
+  return img.png
 }
 
 /** "x = ?", "x =", "f'(2) = ?", "find x", "derive …": a question about the problem above. */
@@ -164,7 +186,8 @@ export function useNova(o: Options) {
     const problemText = problemId ? p.readings[problemId]?.acceptedText : undefined
     let res
     try {
-      res = await api.auto({ context: makeContext(p, region, p.readings[regionId]), text, problem: force && !isQuestion(text) ? null : (problemText ?? null), autoAnswer: force || opts.current.autoAnswer })
+      const diagramPng = await diagramNear(p, region).catch(() => undefined) // geometry: the drawing beside the question
+      res = await api.auto({ context: makeContext(p, region, p.readings[regionId]), text, problem: force && !isQuestion(text) ? null : (problemText ?? null), autoAnswer: force || opts.current.autoAnswer, diagramPng })
     } catch {
       return false // the reading is still shown; reacting is a bonus
     }
