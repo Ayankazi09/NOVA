@@ -16,6 +16,10 @@ How handwritten symbols look (use stroke shapes, not expectations):
 - A horizontal bar with something above and below is a fraction: write (top)/(bottom).
 - Common confusions: 1 vs 7 vs /, 2 vs z, 5 vs s, 0 vs o, 6 vs b, 9 vs g vs q, 4 vs y, x vs ×, ( vs 1, - vs =.
   Decide from the actual stroke shape. If you genuinely cannot decide, give the other full reading in "alternatives".
+- MATRICES (numbers in a grid inside big [ ] or ( ) brackets): write row by row inside [ ], numbers separated by
+  spaces, rows separated by ";": a 2x2 matrix with rows 1 2 and 3 4 is "[1 2; 3 4]". A determinant |grid| is "det[1 2; 3 4]".
+- VECTORS: a column of numbers in brackets is "[2; 3; 1]"; "(2, 3)" as written; î ĵ k̂ are i j k ("2i + 3j - k");
+  a letter with an arrow over it is that letter (a⃗ -> "a"); "a · b" dot product, "a × b" cross product, "|a|" magnitude.
 - A row of dots in a series ("3 + 4 + ... + 100", "1, 2, 3, ..., n") means "and so on": write it as "..." exactly.
   Never drop the dots and never read them as a decimal point or a number.
 - "?" is a question mark: a hook curving right with a dot (or short stroke) under it. Students write "x = ?",
@@ -147,6 +151,10 @@ DIAGRAMS: if a picture of the student's drawing is attached, read EVERYTHING in 
 (A, B, C), every length ("5 cm", "x"), every angle ("40°", "θ"), right-angle squares, equal-length tick marks, parallel
 arrows, radii, diameters, tangents, arcs and shaded regions. State what you read in the first step ("AB = 5 cm, ∠C = 90°").
 Hand-drawn diagrams are not to scale: use only the labels and marks, never measure the picture.
+Vectors and matrices (dot/cross products, magnitude, unit vectors, angle between vectors, projections, matrix +, -,
+×, transpose, determinant, inverse, adjoint, rank, eigenvalues, solving AX = B, Cramer's rule): write matrices row by
+row as [1 2; 3 4] and vectors as (2, 3, 1) or 2i + 3j + k. One small step per line (e.g. one row of a product, or
+one cofactor), and check the arithmetic carefully - every entry must be exact.
 Geometry (areas, perimeters, volumes, angles, triangles, Pythagoras, circles, similar shapes, coordinate geometry):
 write the formula first ("A = πr²"), then substitute, then calculate, with units in the answer ("A ≈ 153.94 cm²").
 "derive", "prove", "show that", "hence" and "find" lines are tasks too: write the derivation or proof step by step

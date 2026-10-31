@@ -641,8 +641,8 @@ async def tutor(req: TutorRequest) -> TutorResponse:
 
 
 _TASK = re.compile(
-    r"=|\?|…|\.\.\.|∪|∩|∈|⊂|⊆|∫|∑|lim|d/d|'|′|\b(derive|show|hence|verify|calculate|compute|find|solve|evaluate|simplify|factori[sz]e|expand|differentiate|derivative|integrate|"
-    r"prove|sum|series|sequence|term|AP|GP|area|perimeter|volume|surface|radius|diameter|circumference|circle|triangle|square|rectangle|polygon|angle|hypotenuse|pythagoras|sector|arc|chord|tangent|cone|cylinder|sphere|cube|probability|mean|median|mode|variance|matrix|det|log|ln|nCr|nPr|union|intersection)\b",
+    r"=|\?|…|\[|·|×|\|[^|]+\||\.\.\.|∪|∩|∈|⊂|⊆|∫|∑|lim|d/d|'|′|\b(derive|show|hence|verify|calculate|compute|find|solve|evaluate|simplify|factori[sz]e|expand|differentiate|derivative|integrate|"
+    r"prove|sum|series|sequence|term|AP|GP|vectors?|dot|cross|magnitude|unit|projection|inverse|transpose|adj|adjoint|cofactor|minor|eigen\w*|rank|trace|area|perimeter|volume|surface|radius|diameter|circumference|circle|triangle|square|rectangle|polygon|angle|hypotenuse|pythagoras|sector|arc|chord|tangent|cone|cylinder|sphere|cube|probability|mean|median|mode|variance|matrix|det|log|ln|nCr|nPr|union|intersection)\b",
     re.I,
 )
 
