@@ -75,6 +75,13 @@ Tests: `cd server && .venv/Scripts/python -m pytest -q` · `cd web && npx vitest
 **Deploy your own:** import the repo on Vercel (the `vercel.json` is ready), add `BHARATCODE_API_KEY` in
 Environment Variables, deploy. Optional: `NOVA_ACCESS_CODE` to require a code from testers.
 
+## License
+
+NOVA is open source under the **[GNU AGPL-3.0](LICENSE)** © 2026 Beyond The Prompts.
+You're free to run it, learn from it and improve it. If you share a modified version, or run one as a website,
+you must publish your source code under the same license and keep the credit. The **NOVA name and logo are not
+licensed** for other projects. See [`NOTICE`](NOTICE).
+
 ---
 
 <p align="center">Made by <b>Beyond The Prompts</b> · If NOVA helped you, please ⭐ the repo!</p>

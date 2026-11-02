@@ -1,0 +1,25 @@
+NOVA - a maths notebook that reads your handwriting and teaches you, step by step
+Copyright (C) 2026 Beyond The Prompts
+
+This program is free software: you can redistribute it and/or modify it under the terms of the
+GNU Affero General Public License as published by the Free Software Foundation, version 3 of the
+License (see the LICENSE file).
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero
+General Public License for more details.
+
+What this means in practice:
+  * You may run, study and modify NOVA, including on your own computer and for teaching.
+  * If you distribute NOVA or a modified version, or run a modified version as a website or online
+    service that other people use, you must make your complete source code available to those users
+    under the same AGPL-3.0 license, and keep this copyright notice and attribution to
+    Beyond The Prompts.
+
+Name and logo
+  "NOVA" and the NOVA logo (the integral sign, "NO" and the square-root-of-4 mark in web/public/ and
+  Logo/) identify this project and its authors. The AGPL-3.0 license covers the source code; it does
+  not grant permission to use the NOVA name or logo for other products or services, or in a way that
+  suggests endorsement by Beyond The Prompts. Forks must use a different name and logo.
+
+Third-party components keep their own licenses (see web/package.json and server/requirements.lock).
