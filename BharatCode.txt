@@ -1,0 +1,54 @@
+NOVA - a maths notebook that reads your handwriting and teaches you, step by step
+==================================================================================
+
+Live demo : https://nova-roan-eta.vercel.app
+Repository: https://github.com/Mandar444/NOVA
+Team      : Beyond The Prompts
+
+WHAT IT IS
+----------
+NOVA is a notebook for maths students (Classes 8-12 and beyond). You write with a finger, stylus
+or mouse on an endless grid page - exactly like a paper notebook - and NOVA reads your handwriting,
+checks it, and answers right next to it IN HANDWRITING:
+
+  * 4 + 2 =            -> writes 6 beside the "="
+  * 3x + 2 = 11        -> writes every step, with red arrows showing what moved across "=" and why
+                          ("+2 moves across = and becomes -2"), so a beginner can follow
+  * 4 + 2 = 7          -> marks it with a red cross; correct work gets a tick
+  * y = 2x + 1         -> draws the graph
+  * f(x) = 3x^2 + 5x + 7, f'(2) = ?   -> f'(x) = 6x + 5 ... f'(2) = 17
+  * A u B, sequences and series (3 + 4 + ... + 100), derivatives, integrals, limits, logs, trig,
+    vectors and matrices (products, determinants, inverses, dot/cross), probability
+  * sin x + tan x = 30 -> solved numerically: x ~ 1.536 + 2n*pi, x ~ 4.680 + 2n*pi
+  * Geometry: draw a triangle, label it 6 and 8, write "x =" -> NOVA reads the DIAGRAM and
+    solves x = 10 with Pythagoras
+  * Ask NOVA anything in a chat (typed or spoken); it can write tables and formulas onto the page
+  * Import a PDF question paper: NOVA becomes a study friend during the test, then marks it
+
+HOW BHARATCODE IS USED
+----------------------
+BharatCode (Responses API, model qwen-3.8-27b) is NOVA's eyes and its professor:
+
+  1. READING HANDWRITING - every line the student writes is rendered to an image and sent to the
+     BharatCode vision model, which transcribes the maths. Each line is read twice independently;
+     if the two readings genuinely disagree NOVA asks "Which did you write?" instead of guessing,
+     so a misread is never marked as the student's mistake.
+  2. SOLVING ANYTHING - for maths beyond NOVA's exact engine (calculus, sets, series, vectors,
+     matrices, proofs, derivations, word problems) BharatCode writes a beginner-friendly worked
+     solution: short steps plus a plain-language note for each step.
+  3. READING DIAGRAMS - for geometry the student's drawing (with its labels, angles, right-angle
+     marks, equal-side ticks) is sent as an image, and BharatCode reads the figure and solves it.
+  4. TUTORING - the Ask NOVA chat, hints that never give the answer away in test mode, and the
+     marking/explanations for imported question papers.
+  5. QUESTION PAPERS - each page of an uploaded PDF is read by BharatCode to find the questions,
+     options and answers, so NOVA can mark the student's handwritten attempts.
+
+Exact maths stays exact: arithmetic and equations are solved by NOVA's own engine (fractions +
+SymPy) and checked, and anything BharatCode writes onto the page is verified wherever possible.
+The BharatCode key lives only on the server; it is never sent to the browser.
+
+TECH
+----
+Web: React 19 + TypeScript + Vite, canvas ink, a handwriting engine that writes answers in a
+human hand. Server: Python FastAPI on Vercel (Mumbai region). Data: notebooks stay on the
+student's device (IndexedDB); tester sign-ups in Supabase.
