@@ -24,7 +24,17 @@ export interface BrowserListen {
   cancel(): void
 }
 
-/** Start listening; onDone gets the transcript ('' if nothing was heard) or an error message. */
+function explain(code: string): string | undefined {
+  if (code === 'no-speech' || code === 'aborted') return undefined
+  if (code === 'not-allowed' || code === 'service-not-allowed') return 'Microphone is blocked. Allow it from the icon in the address bar, then try again.'
+  if (code === 'audio-capture') return 'No microphone was found. Plug one in, or type your question.'
+  if (code === 'network') return "This browser can't reach its speech service (Brave and some others block it). Try Chrome, or type."
+  return 'Voice input failed. Type instead.'
+}
+
+const MAX_LISTEN_MS = 20_000
+
+/** Start listening for one spoken question; onDone gets the transcript ('' if nothing was heard) or an error message. */
 export function listen(onDone: (text: string, error?: string) => void): BrowserListen {
   const C = ctor()
   if (!C) {
@@ -33,26 +43,37 @@ export function listen(onDone: (text: string, error?: string) => void): BrowserL
   }
   const r = new C()
   r.lang = navigator.language || 'en-IN'
-  r.interimResults = false
-  r.continuous = true
+  r.interimResults = true // keep partial words, so stopping early still delivers them
+  r.continuous = false // one question, ends at the pause; continuous mode repeats words on Android
   let text = ''
   let error: string | undefined
   let cancelled = false
+  let finished = false
+  const cap = setTimeout(() => r.stop(), MAX_LISTEN_MS)
+  const finish = () => {
+    clearTimeout(cap)
+    if (finished || cancelled) return
+    finished = true
+    onDone(text, error)
+  }
   r.onresult = (e) => {
     text = Array.from(e.results).map((x) => x[0]?.transcript ?? '').join(' ').trim()
   }
   r.onerror = (e) => {
-    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') error = 'Microphone permission was blocked. Allow it in the browser, or type.'
-    else if (e.error !== 'no-speech' && e.error !== 'aborted') error = 'Voice input failed. Type instead.'
+    error = explain(e.error) ?? error
   }
-  r.onend = () => {
-    if (!cancelled) onDone(text, error)
+  r.onend = finish
+  try {
+    r.start()
+  } catch {
+    error = 'Voice input could not start. Try again, or type.'
+    finish()
   }
-  r.start()
   return {
     stop: () => r.stop(),
     cancel: () => {
       cancelled = true
+      clearTimeout(cap)
       r.abort()
     },
   }

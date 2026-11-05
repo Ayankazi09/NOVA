@@ -94,8 +94,13 @@ export function usePaper(o: Options) {
       const page = doc(o).pages[pageId]
       const asset = page?.backgroundAssetId ? await getAsset(page.backgroundAssetId) : undefined
       if (!page || !asset) return failed.push(index)
-      const png = await pageForModel(new Blob([asset.bytes], { type: asset.mime }))
-      const lines = (page.docText ?? []).map((l) => ({ id: l.id, text: l.text }))
+      let png: string
+      try {
+        png = await pageForModel(new Blob([asset.bytes], { type: asset.mime }))
+      } catch {
+        return failed.push(index)
+      }
+      const lines = (page.docText ?? []).slice(0, 250).map((l) => ({ id: l.id, text: l.text }))
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
           const res = await api.paperAnalyze({ requestId: uuid(), pageIndex: index, png, lines })

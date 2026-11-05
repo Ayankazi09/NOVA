@@ -362,7 +362,7 @@ hr { border: 0; border-top: 1px solid var(--rule); margin: 6px 0; }
 .test-progress .bar i { display: block; height: 100%; background: var(--nova); transition: width 300ms ease; }
 .test-error { margin: 10px 16px 0; font-size: 12.5px; color: var(--red); background: var(--red-soft); border-radius: 10px; padding: 8px 10px; }
 .q-list { list-style: none; margin: 0; padding: 8px; overflow: auto; flex: 1; display: flex; flex-direction: column; gap: 6px; }
-.q-row { border: 1px solid var(--rule); border-radius: 12px; background: #fff; overflow: hidden; }
+.q-row { flex: none; border: 1px solid var(--rule); border-radius: 12px; background: #fff; overflow: hidden; }
 .q-row.correct { border-color: #b9dcc8; }
 .q-row.incorrect { border-color: #ecc0b6; }
 .q-main { display: flex; gap: 10px; width: 100%; text-align: left; border: 0; background: none; padding: 10px 12px 6px; }

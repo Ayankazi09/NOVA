@@ -44,14 +44,23 @@ export function AskPanel({ docked, startWithMic, turns, status, about, onClearAb
   const [spoken, setSpoken] = useState(false) // the current question came from the microphone
   const rec = useRef<Recording | null>(null)
   const live = useRef<BrowserListen | null>(null)
+  const liveStart = useRef(0)
+  const textNow = useRef('')
+  const statusNow = useRef('')
+  const gone = useRef(false) // panel closed (or remounted) while waiting to start the mic
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const threadRef = useRef<HTMLDivElement>(null)
   const abort = useRef<AbortController | null>(null)
 
   useEffect(() => {
-    if (startWithMic) void toggleMic()
+    gone.current = false
+    void hasServerVoice() // known before the mic is tapped, so the tap still counts as the user's gesture
+    let micTimer: ReturnType<typeof setTimeout> | undefined
+    if (startWithMic) micTimer = setTimeout(() => void toggleMic()) // after StrictMode's trial mount
     else inputRef.current?.focus()
     return () => {
+      gone.current = true
+      clearTimeout(micTimer)
       rec.current?.cancel()
       live.current?.cancel()
       abort.current?.abort()
@@ -65,7 +74,7 @@ export function AskPanel({ docked, startWithMic, turns, status, about, onClearAb
 
   useEffect(() => {
     if (mic !== 'recording') return
-    const t = setInterval(() => setElapsed(Date.now() - (rec.current?.startedAt ?? Date.now())), 200)
+    const t = setInterval(() => setElapsed(Date.now() - (rec.current?.startedAt ?? liveStart.current)), 200)
     return () => clearInterval(t)
   }, [mic])
 
@@ -100,21 +109,31 @@ export function AskPanel({ docked, startWithMic, turns, status, about, onClearAb
     if (mic === 'recording') return finishRecording()
     if (mic === 'transcribing') return
     stopSpeaking() // never record our own speech output
-    if (!(await hasServerVoice()) && browserSpeechAvailable()) {
+    const serverVoice = await hasServerVoice()
+    if (gone.current) return
+    if (!serverVoice) {
+      if (!browserSpeechAvailable()) return setMicError('Voice input needs Chrome, Edge or Safari. You can type your question here.')
       setElapsed(0)
+      liveStart.current = Date.now()
       setMic('recording')
-      const startedAt = Date.now()
       rec.current = null
       live.current = listen((heard, err) => {
         live.current = null
         setMic('idle')
-        if (err) return setMicError(err)
+        if (err && !heard) return setMicError(err)
         if (!heard) return setMicError('No speech was heard. Try again or type.')
-        setText((t) => (t ? t + ' ' : '') + heard)
-        setSpoken(true)
-        inputRef.current?.focus()
+        // a spoken question is sent straight away and answered out loud
+        const q = `${textNow.current} ${heard}`.trim()
+        if (statusNow.current === 'working') {
+          setText(q)
+          setSpoken(true)
+          inputRef.current?.focus()
+          return
+        }
+        onSend('ask', q, { voice: true })
+        setText('')
+        setSpoken(false)
       })
-      void startedAt
       return
     }
     try {
@@ -142,6 +161,8 @@ export function AskPanel({ docked, startWithMic, turns, status, about, onClearAb
   }
 
   const busy = status.state === 'working'
+  textNow.current = text
+  statusNow.current = status.state
   const shown = turns.slice(-24)
   return (
     <aside className={docked ? 'ask-panel' : 'ask-panel sheet-mode'} onPointerDown={(e) => e.stopPropagation()} role="dialog" aria-label="Ask NOVA">
