@@ -21,6 +21,10 @@ import { AssistConsent, SettingsDialog, type AppSettings } from '../ui/Settings'
 import { getAsset, putAsset } from '../storage/db'
 import { buildBackup, checksumBytes, downloadJson } from '../storage/backup'
 import { speak, stopSpeaking } from '../voice/speech'
+import { PracticeDialog } from '../ui/PracticeDialog'
+import { FirstRun } from '../ui/FirstRun'
+import { downloadBlob, pageHasContent, printPng, renderPagePng, safeName, sharePng } from '../storage/share'
+import { isWeak, progress } from '../tutor/topics'
 
 export type SaveStatus = 'saved' | 'saving' | 'error'
 
@@ -35,6 +39,9 @@ interface Props {
   onBack: () => void
   startAction?: StartAction | null
   onStartConsumed?: () => void
+  /** first visit: show what NOVA can do */
+  showWelcome?: boolean
+  onWelcomeDone?: () => void
   /** Home: this notebook is the scratch page; notebooks are pinned onto its grid */
   home?: { onOpen: (id: string) => void; onNew: () => void; onImportPaper: (file: File) => void; onRestore: (file: File) => void }
 }
@@ -58,7 +65,7 @@ function useViewport() {
   return size
 }
 
-export function NotebookScreen({ state, dispatch, settings, setSettings, saveStatus, saveError, onRetrySave, onBack, startAction, onStartConsumed, home }: Props) {
+export function NotebookScreen({ state, dispatch, settings, setSettings, saveStatus, saveError, onRetrySave, onBack, startAction, onStartConsumed, home, showWelcome, onWelcomeDone }: Props) {
   const homePdfRef = useRef<HTMLInputElement>(null)
   const restoreRef = useRef<HTMLInputElement>(null)
   const { doc } = state
@@ -78,7 +85,7 @@ export function NotebookScreen({ state, dispatch, settings, setSettings, saveSta
   const [view, setViewRaw] = useState<View>({ scale: 1, tx: 16, ty: 16 })
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [selected, setSelected] = useState<string | null>(null)
-  const [ask, setAsk] = useState<{ mic: boolean; key: number } | null>(null)
+  const [ask, setAsk] = useState<{ mic: boolean; key: number; text?: string } | null>(null)
   const [askAbout, setAskAbout] = useState<string | null>(null) // line the conversation is about (null = whole page)
   const [pagesOpen, setPagesOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -101,6 +108,8 @@ export function NotebookScreen({ state, dispatch, settings, setSettings, saveSta
   const pdfRef = useRef<HTMLInputElement>(null)
   const [testOpen, setTestOpen] = useState(false)
   const [hwOpen, setHwOpen] = useState(false)
+  const [practiceOpen, setPracticeOpen] = useState<{ example: string | null } | null>(null)
+  const [tourOpen, setTourOpen] = useState(false)
 
   useEffect(() => setTitleDraft(nb.title), [nb.title])
 
@@ -120,7 +129,10 @@ export function NotebookScreen({ state, dispatch, settings, setSettings, saveSta
     background: bgImage,
     penActive,
     onCapReached: () => toast('Automatic reading paused after 60 reads this session. Use Read on a line to continue.'),
-    onBatchApplied: (n, batchId) => toast(`NOVA added ${n} ${n === 1 ? 'item' : 'items'}.`, { label: 'Undo', fn: () => undoBatch(batchId) }),
+    onBatchApplied: (n, batchId) => {
+      toast(`NOVA added ${n} ${n === 1 ? 'item' : 'items'}.`, { label: 'Undo', fn: () => undoBatch(batchId) })
+      setTimeout(() => revealRef.current(batchId), 80) // once the new writing is on the page
+    },
   })
 
   const undoBatch = (batchId: string) => {
@@ -142,6 +154,30 @@ export function NotebookScreen({ state, dispatch, settings, setSettings, saveSta
     },
     [size.w, size.h, pageId],
   )
+  /** Bring what NOVA just wrote into view: it must never land off-screen or behind the Ask panel. */
+  const revealRef = useRef<(batchId: string) => void>(() => undefined)
+  revealRef.current = (batchId: string) => {
+    const pg = stateRef.current.doc.pages[pageId]
+    const objs = pg?.tutorObjects.filter((t) => t.batchId === batchId && t.status === 'active' && t.action.type !== 'highlight_region' && t.action.type !== 'speak') ?? []
+    if (!objs.length || !size.w) return
+    const x0 = Math.min(...objs.map((t) => t.layout.x)), y0 = Math.min(...objs.map((t) => t.layout.y))
+    const x1 = Math.max(...objs.map((t) => t.layout.x + t.layout.w)), y1 = Math.max(...objs.map((t) => t.layout.y + t.layout.h))
+    // the part of the workspace nothing covers (the Ask panel sits on the right, or over the bottom on a phone)
+    const visW = size.w - (ask && !phone ? 432 : 0)
+    const visH = ask && phone ? size.h * 0.38 : size.h
+    setView((v) => {
+      const pad = 24
+      let { tx, ty } = v
+      const sx = tx + x0 * v.scale, sw = (x1 - x0) * v.scale
+      const sy = ty + y0 * v.scale, sh = (y1 - y0) * v.scale
+      if (sx + sw > visW - pad) tx += visW - pad - (sx + sw)
+      if (tx + x0 * v.scale < pad) tx = pad - x0 * v.scale // too wide to fit: show its start
+      if (sy + sh > visH - pad) ty += visH - pad - (sy + sh)
+      if (ty + y0 * v.scale < pad) ty = pad - y0 * v.scale
+      return tx === v.tx && ty === v.ty ? v : { ...v, tx, ty }
+    })
+  }
+
   const fitWidth = useCallback(() => {
     if (!size.w) return
     if (page.bg) {
@@ -277,6 +313,11 @@ export function NotebookScreen({ state, dispatch, settings, setSettings, saveSta
       toast('This line is now the problem. Help on it is tracked separately.')
       return
     }
+    if (a === 'practice') {
+      setPracticeOpen({ example: readingText(page.readings[selected]) ?? null })
+      setSelected(null)
+      return
+    }
     if (a === 'solve') void nova.solveHere(selected)
     else runIntent(a, '')
     setSelected(null) // the menu must not sit over the answer NOVA is about to place
@@ -316,13 +357,45 @@ export function NotebookScreen({ state, dispatch, settings, setSettings, saveSta
     if (startAction.type === 'pdf') {
       setTestOpen(true)
       void paper.importPaper(startAction.file)
+    } else if (startAction.type === 'practice') {
+      void runPractice({ topic: startAction.topic })
+    } else if (startAction.type === 'tip') {
+      toast(startAction.text, { label: 'Got it', fn: () => undefined })
     } else {
       setAskAbout(null)
-      setAsk({ mic: false, key: Date.now() })
+      setAsk({ mic: false, key: Date.now(), text: startAction.text })
     }
     onStartConsumed?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startAction])
+  const runPractice = async (p: { topic?: string; example?: string; count?: number }) => {
+    setPracticeOpen(null)
+    setTestOpen(false)
+    const id = await paper.startPractice(p)
+    if (id) setTestOpen(true)
+  }
+  const weakTopics = useMemo(() => progress([doc]).topics.filter(isWeak).map((t) => t.topic), [doc])
+
+  // ---- share the page (image to the share sheet / download, or print to PDF)
+  const [sharing, setSharing] = useState(false)
+  const sharePage = async (mode: 'share' | 'download' | 'pdf') => {
+    setMenu(null)
+    const pg = stateRef.current.doc.pages[pageId]
+    if (!pageHasContent(pg)) return toast('This page is empty. Write something first.')
+    const title = `${nb.title} · ${pg.title || `Page ${pageIndex + 1}`}`
+    setSharing(true)
+    try {
+      const blob = await renderPagePng(pg, title)
+      if (mode === 'pdf') await printPng(blob, title)
+      else if (mode === 'download') downloadBlob(blob, `${safeName(title)}.png`)
+      else if ((await sharePng(blob, title)) === 'downloaded') toast('Page saved as an image. Send it from your downloads.')
+    } catch (e) {
+      toast((e as Error).message || 'Could not share this page.')
+    } finally {
+      setSharing(false)
+    }
+  }
+
   const testsList = Object.values(doc.tests ?? {}).sort((a, b) => b.createdAt - a.createdAt)
   const activeTest = testsList.find((t) => t.pageIds.includes(pageId)) ?? testsList[0]
   const gotoQuestion = (q: { pageId: string; bounds: Rect }) => {
@@ -475,10 +548,16 @@ export function NotebookScreen({ state, dispatch, settings, setSettings, saveSta
 
   const overflowPopover = (
     <div className="popover menu overflow-pop" onPointerDown={(e) => e.stopPropagation()}>
+      <button className="menu-item" onClick={() => { setPracticeOpen({ example: null }); setMenu(null) }}>Practice a topic…</button>
+      <button className="menu-item" disabled={sharing} onClick={() => void sharePage('share')}>Share page as image</button>
+      <button className="menu-item" disabled={sharing} onClick={() => void sharePage('download')}>Download page image (.png)</button>
+      <button className="menu-item" disabled={sharing} onClick={() => void sharePage('pdf')}>Save page as PDF…</button>
+      <hr />
       <button className="menu-item" onClick={() => { setSettingsOpen(true); setMenu(null) }}>Settings & connection</button>
       <button className="menu-item" onClick={() => { void exportBackup(); setMenu(null) }}>Export backup</button>
       <button className="menu-item" onClick={() => { setFocus(true); setMenu(null) }}>Focus mode</button>
       <button className="menu-item" onClick={() => { setHistoryOpen(true); setMenu(null) }}>NOVA history</button>
+      <button className="menu-item" onClick={() => { setTourOpen(true); setMenu(null) }}>What NOVA can do</button>
       <hr />
       <button className="menu-item" onClick={() => { addPage(); setMenu(null) }}>New page</button>
       <button className="menu-item" onClick={() => { pdfRef.current?.click(); setMenu(null) }}>Import question paper (PDF)…</button>
@@ -586,6 +665,7 @@ export function NotebookScreen({ state, dispatch, settings, setSettings, saveSta
           {testsList.length > 0 && (
             <button className={`tool-btn test-btn ${testOpen ? 'active' : ''}`} aria-label="Test" onClick={() => setTestOpen((v) => !v)}><Icon.check /><span className="tool-label">Test</span></button>
           )}
+          <button className="tool-btn" aria-label="Share page" title="Share this page as an image" disabled={sharing} onClick={() => void sharePage('share')}><Icon.share /></button>
           <button className={`tool-btn ${historyOpen ? 'active' : ''}`} aria-label="History" onClick={() => setHistoryOpen((v) => !v)}><Icon.history /></button>
           <button className="ask-btn" onClick={() => openAsk(false)}><Icon.ask /> Ask NOVA</button>
           <button className="tool-btn" aria-label="Ask by voice" onClick={() => openAsk(true)}><Icon.mic /></button>
@@ -685,6 +765,7 @@ export function NotebookScreen({ state, dispatch, settings, setSettings, saveSta
             onFinish={() => void paper.finish(activeTest.id)}
             onRetry={() => paper.retryFailed(activeTest.id)}
             onClose={() => setTestOpen(false)}
+            onPracticeMore={activeTest.kind === 'practice' ? () => void runPractice({ topic: activeTest.topic, example: activeTest.source }) : undefined}
           />
         )}
       </div>
@@ -711,6 +792,9 @@ export function NotebookScreen({ state, dispatch, settings, setSettings, saveSta
                 <button className="menu-item" onClick={() => { toggleAssist(); setMenu(null) }}>Assist: {settings.assist ? 'on' : 'off'}</button>
                 <button className="menu-item" onClick={() => { setPagesOpen(true); setMenu(null) }}>Pages</button>
                 <button className="menu-item" onClick={() => { setHistoryOpen(true); setMenu(null) }}>NOVA history</button>
+                <button className="menu-item" onClick={() => { setPracticeOpen({ example: null }); setMenu(null) }}>Practice a topic…</button>
+                <button className="menu-item" disabled={sharing} onClick={() => void sharePage('share')}>Share page</button>
+                {testsList.length > 0 && <button className="menu-item" onClick={() => { setTestOpen(true); setMenu(null) }}>Test / practice sheet</button>}
                 <button className="menu-item" onClick={() => { setMenu('page') }}>Page options…</button>
               </div>
             )}
@@ -734,6 +818,7 @@ export function NotebookScreen({ state, dispatch, settings, setSettings, saveSta
           key={ask.key}
           docked={!phone}
           startWithMic={ask.mic}
+          initialText={ask.text}
           turns={page.history}
           status={nova.status}
           about={askAbout ? readingText(page.readings[askAbout]) ?? 'the selected line' : null}
@@ -743,6 +828,15 @@ export function NotebookScreen({ state, dispatch, settings, setSettings, saveSta
         />
       )}
       {sheet && <ObjectSheet obj={sheet} onClose={() => setSheet(null)} />}
+      {paper.busy && !(testOpen && activeTest) && (
+        <div className="busy-banner" role="status"><span className="spinner" />{paper.busy}</div>
+      )}
+      {practiceOpen && (
+        <PracticeDialog example={practiceOpen.example} suggested={weakTopics} onStart={(p) => void runPractice(p)} onClose={() => setPracticeOpen(null)} />
+      )}
+      {(tourOpen || (showWelcome && !home)) && (
+        <FirstRun onClose={() => { setTourOpen(false); onWelcomeDone?.() }} />
+      )}
       {settingsOpen && (
         <SettingsDialog
           settings={settings}

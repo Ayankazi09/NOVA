@@ -67,6 +67,18 @@ export type TutorAction =
   | { id: string; type: 'speak'; anchorRegionId: string; text: string }
   | { id: string; type: 'write_lines'; anchorRegionId: string; title: string; lines: string[]; inks?: ('blue' | 'red' | 'black')[]; verified: boolean[]; corrected: number }
   | { id: string; type: 'write_table'; anchorRegionId: string; title: string; header: string[]; rows: string[][]; verifiedCells: number; corrected: number; unverifiedCells: number }
+  // a geometry figure, to scale: named points in maths coordinates (y up), the lines / circles between them, and labels
+  | {
+      id: string; type: 'draw_figure'; anchorRegionId: string; title: string
+      points: Record<string, [number, number]>
+      segments: [string, string][]
+      dashed?: [string, string][]
+      circles?: { center: string; radius: number; label?: string }[]
+      sideLabels?: { between: [string, string]; text: string }[]
+      angleLabels?: { at: string; text: string }[]
+      rightAngles?: string[]
+      notes?: string[]
+    }
   // client-side: NOVA's answer drawn as handwriting (page-unit polylines), always in NOVA ink
   | { id: string; type: 'write_ink'; anchorRegionId: string; text: string; strokes: [number, number][][]; width: number; purpose: 'answer' | 'completion' | 'mark' | 'content'; verified: boolean; tone: 'nova' | 'correct' | 'wrong'; colors?: string[] }
 
@@ -156,6 +168,9 @@ export interface PaperQuestion {
 export interface PaperTest {
   id: string
   title: string
+  kind?: 'paper' | 'practice' // practice: a worksheet NOVA wrote (older tests are papers)
+  topic?: string // practice: the skill being practised
+  source?: string // practice: the line it was made from ("5 more like this")
   status: 'reading' | 'ready' | 'grading' | 'finished' | 'failed'
   pageIds: string[]
   questions: PaperQuestion[]

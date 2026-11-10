@@ -18,6 +18,7 @@ import { Icon } from './icons'
 interface Props {
   docked: boolean // false = phone bottom sheet
   startWithMic: boolean
+  initialText?: string // a question ready to send (from "Try this")
   turns: Turn[]
   status: TutorStatus
   about: string | null // text of the selected line, or null for the whole page
@@ -36,17 +37,18 @@ const QUICK_LINE: { label: string; intent: Intent; q: string }[] = [
 ]
 const QUICK_PAGE: string[] = ['Add a trigonometry table', 'Write the algebraic identities', 'Explain what I did on this page', 'Give me a similar question to practise']
 
-export function AskPanel({ docked, startWithMic, turns, status, about, onClearAbout, onSend, onClose }: Props) {
-  const [text, setText] = useState('')
+export function AskPanel({ docked, startWithMic, initialText, turns, status, about, onClearAbout, onSend, onClose }: Props) {
+  const [text, setText] = useState(initialText ?? '')
   const [mic, setMic] = useState<'idle' | 'recording' | 'transcribing'>('idle')
   const [elapsed, setElapsed] = useState(0)
   const [micError, setMicError] = useState<string | null>(null)
   const [spoken, setSpoken] = useState(false) // the current question came from the microphone
+  const [hearing, setHearing] = useState('') // the words heard so far, shown live while the mic is on
+  const preview = useRef<BrowserListen | null>(null) // live words while the server engine records
   const rec = useRef<Recording | null>(null)
   const live = useRef<BrowserListen | null>(null)
   const liveStart = useRef(0)
   const textNow = useRef('')
-  const statusNow = useRef('')
   const gone = useRef(false) // panel closed (or remounted) while waiting to start the mic
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const threadRef = useRef<HTMLDivElement>(null)
@@ -63,10 +65,17 @@ export function AskPanel({ docked, startWithMic, turns, status, about, onClearAb
       clearTimeout(micTimer)
       rec.current?.cancel()
       live.current?.cancel()
+      preview.current?.cancel()
       abort.current?.abort()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // keep the newest words in view while they are being written
+  useEffect(() => {
+    const t = inputRef.current
+    if (t && hearing) t.scrollTop = t.scrollHeight
+  }, [hearing])
 
   useEffect(() => {
     threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: 'smooth' })
@@ -82,7 +91,9 @@ export function AskPanel({ docked, startWithMic, turns, status, about, onClearAb
     const r = rec.current
     if (!r) return
     rec.current = null
-    setMic('transcribing')
+    preview.current?.cancel()
+    preview.current = null
+    setMic('transcribing') // the live words stay in the box until the exact transcript replaces them
     try {
       const blob = await r.stop()
       const ctl = new AbortController()
@@ -97,6 +108,7 @@ export function AskPanel({ docked, startWithMic, turns, status, about, onClearAb
       setMicError(e instanceof ApiFailure ? (e.code === 'FEATURE_UNAVAILABLE' ? 'Voice is not set up on this computer yet. Type instead.' : e.message) : 'Recording failed. Type instead.')
     } finally {
       setMic('idle')
+      setHearing('')
     }
   }
 
@@ -115,31 +127,44 @@ export function AskPanel({ docked, startWithMic, turns, status, about, onClearAb
       if (!browserSpeechAvailable()) return setMicError('Voice input needs Chrome, Edge or Safari. You can type your question here.')
       setElapsed(0)
       liveStart.current = Date.now()
+      setHearing('')
+      if (spoken) {
+        // speaking again replaces the last attempt (it was misheard), instead of piling on top of it
+        setText('')
+        textNow.current = ''
+      }
       setMic('recording')
       rec.current = null
       live.current = listen((heard, err) => {
         live.current = null
         setMic('idle')
+        setHearing('')
         if (err && !heard) return setMicError(err)
         if (!heard) return setMicError('No speech was heard. Try again or type.')
-        // a spoken question is sent straight away and answered out loud
+        // what was heard stays in the box, so it can be checked and corrected: it is only sent on Enter / Send
+        // (and, because it was spoken, NOVA answers it out loud)
         const q = `${textNow.current} ${heard}`.trim()
-        if (statusNow.current === 'working') {
-          setText(q)
-          setSpoken(true)
-          inputRef.current?.focus()
-          return
-        }
-        onSend('ask', q, { voice: true })
-        setText('')
-        setSpoken(false)
-      })
+        setText(q)
+        setSpoken(true)
+        setTimeout(() => {
+          const t = inputRef.current
+          if (!t) return
+          t.focus()
+          t.setSelectionRange(t.value.length, t.value.length) // caret at the end, ready to fix a word
+        })
+      }, { onPartial: setHearing })
       return
     }
     try {
       rec.current = await startRecording(() => void finishRecording())
       setElapsed(0)
+      setHearing('')
       setMic('recording')
+      // the server engine only transcribes after you stop: meanwhile show the browser's live words
+      // (not on phones, where two listeners on one microphone interfere)
+      if (browserSpeechAvailable() && !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        preview.current = listen(() => (preview.current = null), { onPartial: setHearing, continuous: true })
+      }
     } catch (e) {
       setMicError(e instanceof RecorderError ? e.message : 'Microphone unavailable. Type instead.')
     }
@@ -148,10 +173,13 @@ export function AskPanel({ docked, startWithMic, turns, status, about, onClearAb
   const cancelMic = () => {
     live.current?.cancel()
     live.current = null
+    preview.current?.cancel()
+    preview.current = null
     rec.current?.cancel()
     rec.current = null
     abort.current?.abort()
     setMic('idle')
+    setHearing('')
   }
 
   const send = (intent: Intent, q: string) => {
@@ -162,8 +190,9 @@ export function AskPanel({ docked, startWithMic, turns, status, about, onClearAb
 
   const busy = status.state === 'working'
   textNow.current = text
-  statusNow.current = status.state
   const shown = turns.slice(-24)
+  const listening = mic !== 'idle'
+  const boxText = listening && hearing ? `${text} ${hearing}`.trim() : text
   return (
     <aside className={docked ? 'ask-panel' : 'ask-panel sheet-mode'} onPointerDown={(e) => e.stopPropagation()} role="dialog" aria-label="Ask NOVA">
       <header className="ask-head">
@@ -206,11 +235,18 @@ export function AskPanel({ docked, startWithMic, turns, status, about, onClearAb
       <div className="ask-row">
         <textarea
           ref={inputRef}
-          value={text}
+          className={listening ? 'hearing' : undefined}
+          value={boxText}
+          readOnly={listening}
+          aria-live={listening ? 'polite' : undefined}
           maxLength={1200}
-          rows={2}
-          placeholder={mic === 'recording' ? 'Listening…' : turns.length ? 'Reply to NOVA…' : 'Ask NOVA anything…'}
-          onChange={(e) => setText(e.target.value)}
+          rows={listening && boxText.length > 60 ? 3 : 2}
+          placeholder={mic === 'recording' ? 'Listening… start speaking, your words appear here' : turns.length ? 'Reply to NOVA…' : 'Ask NOVA anything…'}
+          onChange={(e) => {
+            if (listening) return
+            setText(e.target.value)
+            if (!e.target.value.trim()) setSpoken(false) // cleared: the next question is a typed one
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey && text.trim() && !busy) {
               e.preventDefault()
@@ -224,8 +260,9 @@ export function AskPanel({ docked, startWithMic, turns, status, about, onClearAb
         </button>
         <button className="icon-btn send" aria-label="Send" disabled={!text.trim() || mic !== 'idle' || busy} onClick={() => send('ask', text.trim())}><Icon.send /></button>
       </div>
-      {mic === 'recording' && <div className="mic-state"><span className="rec-dot" /> Recording {(elapsed / 1000).toFixed(1)} s / 20 s <button className="link" onClick={cancelMic}>Cancel</button></div>}
+      {mic === 'recording' && <div className="mic-state"><span className="rec-dot" /> {hearing ? 'Writing what you say' : 'Listening'} · {(elapsed / 1000).toFixed(1)} s / 20 s <button className="link" onClick={cancelMic}>Cancel</button></div>}
       {mic === 'transcribing' && <div className="mic-state">Transcribing on this computer… <button className="link" onClick={cancelMic}>Cancel</button></div>}
+      {mic === 'idle' && spoken && !!text.trim() && !micError && <div className="mic-state">Check what NOVA heard and fix any word, then press <b>Enter</b> to send.</div>}
       {micError && <div className="mic-state error-text">{micError}</div>}
     </aside>
   )

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, type Capabilities } from '../tutor/api'
 import { Icon } from './icons'
+import { getThemePref, setThemePref, type ThemePref } from './theme'
 
 export interface AppSettings {
   settingsV?: number
@@ -34,6 +35,7 @@ export function SettingsDialog({ settings, onChange, onClose, onRequestAssist, o
   const [err, setErr] = useState<string | null>(null)
   const [testing, setTesting] = useState<string | null>(null)
   const [result, setResult] = useState<string | null>(null)
+  const [theme, setTheme] = useState<ThemePref>(getThemePref)
 
   const load = () => api.capabilities().then((c) => { setCaps(c); setErr(null) }).catch((e) => setErr((e as Error).message))
   useEffect(() => void load(), [])
@@ -61,6 +63,18 @@ export function SettingsDialog({ settings, onChange, onClose, onRequestAssist, o
           <h2>Settings</h2>
           <button className="icon-btn" aria-label="Close" onClick={onClose}><Icon.close /></button>
         </div>
+
+        <section>
+          <h3>Appearance</h3>
+          <div className="row gap" role="radiogroup" aria-label="Theme">
+            {(['system', 'light', 'dark'] as ThemePref[]).map((t) => (
+              <button key={t} role="radio" aria-checked={theme === t} className={`chip ${theme === t ? 'on' : ''}`} onClick={() => { setTheme(t); setThemePref(t) }}>
+                {t === 'system' ? 'Match device' : t === 'light' ? <><Icon.sun /> Light</> : <><Icon.moon /> Dark</>}
+              </button>
+            ))}
+          </div>
+          <p className="muted">In dark mode the page turns charcoal and your ink turns light. Shared images always come out on white paper.</p>
+        </section>
 
         <section>
           <h3>Assist</h3>

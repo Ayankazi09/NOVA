@@ -23,7 +23,7 @@ from ..maths.solve import run as solve_run
 from ..providers.bharatcode import provider
 from ..schemas.models import (
     Capabilities, CheckRequest, CheckResponse, PlotPayload, PlotRequest, PlotResponse, RecognizeRequest, RecognizeResponse,
-    AutoRequest, AutoResponse, GradeRequest, GradeResult, PaperAnalyzeRequest, PaperAnalyzeResponse, SolveRequest, SolveResponse,
+    AutoRequest, AutoResponse, GradeRequest, PracticeRequest, PracticeResponse, GradeResult, PaperAnalyzeRequest, PaperAnalyzeResponse, SolveRequest, SolveResponse,
     TutorRequest, TutorResponse,
 )
 from ..speech.transcriber import transcriber
@@ -154,6 +154,14 @@ async def paper_analyze(req: PaperAnalyzeRequest) -> PaperAnalyzeResponse:
 @router.post("/paper/grade", response_model=list[GradeResult])
 async def paper_grade(req: GradeRequest) -> list[GradeResult]:
     return [GradeResult(**g) for g in await services.grade(req.items)]
+
+
+@router.post("/practice", response_model=PracticeResponse)
+async def practice(req: PracticeRequest) -> PracticeResponse:
+    """New practice questions like the student's example (or on a topic), answers checked by the exact engine."""
+    fp = cache.fingerprint("practice", req.model_dump(mode="json"))
+    r = await cache.run(str(req.requestId), fp, lambda: services.practice(req))
+    return PracticeResponse(**r)
 
 
 @router.post("/auto", response_model=AutoResponse)

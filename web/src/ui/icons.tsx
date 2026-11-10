@@ -38,5 +38,12 @@ export const Icon = {
   fit: () => <I><path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4" /></I>,
   read: () => <I><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></I>,
   notebook: () => <I><rect x="5" y="3" width="14" height="18" rx="1.5" /><path d="M9 3v18M12 8h4M12 12h4" /></I>,
+  share: () => <I><circle cx="18" cy="5" r="2.5" /><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="19" r="2.5" /><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4" /></I>,
+  download: () => <I><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5" /><path d="M5 19h14" /></I>,
+  printer: () => <I><path d="M7 9V4h10v5" /><rect x="4" y="9" width="16" height="7" rx="1.5" /><path d="M7 14h10v6H7z" /></I>,
+  sun: () => <I><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4" /></I>,
+  moon: () => <I><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /></I>,
+  flame: () => <I><path d="M12 21c-3.9 0-6.5-2.6-6.5-6.1 0-3.3 2.4-5.3 3.6-7.9.4 1.6 1.2 2.7 2.4 3.4C11.5 7.1 13 4.5 15.5 3c-.3 3 1.2 4.6 2.3 6.3.9 1.4 1.2 2.6 1.2 4 0 4.3-3 7.7-7 7.7z" /></I>,
+  target: () => <I><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.5" /></I>,
   trash: () => <I><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></I>,
 }

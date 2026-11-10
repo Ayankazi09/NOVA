@@ -161,6 +161,8 @@ export const api = {
     call<{ context: RequestContext; kind: 'answer' | 'mark' | 'solution' | 'none'; verdict: 'correct' | 'incorrect' | 'equivalent' | 'different' | 'solved' | 'none'; answer?: string | null; steps?: string[]; notes?: string[]; moves?: ({ find: string; becomes: string } | null)[]; suggest?: 'graph' | 'solve' | 'none'; message?: string | null }>('/api/v1/auto', json(body), signal),
   paperAnalyze: (body: { requestId: string; pageIndex: number; png: string; lines: { id: string; text: string }[] }) =>
     call<{ pageIndex: number; latencyMs: number; questions: { number: string; text: string; lineIds: string[]; bbox: number[]; kind: string; options: string[]; answer: string; answerVerified: boolean; corrected: boolean }[] }>('/api/v1/paper/analyze', json(body)),
+  practice: (body: { requestId: string; topic?: string; example?: string; count: number }) =>
+    call<{ topic: string; latencyMs: number; questions: { number: string; text: string; kind: string; options: string[]; answer: string; answerVerified: boolean; corrected: boolean }[] }>('/api/v1/practice', json(body)),
   paperGrade: (items: { id: string; kind: string; answer: string; student: string }[]) =>
     call<{ id: string; verdict: 'correct' | 'incorrect' | 'unanswered' }[]>('/api/v1/paper/grade', json({ items })),
   transcribe: (requestId: string, audio: Blob, signal?: AbortSignal) => {

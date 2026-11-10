@@ -14,9 +14,11 @@ interface Props {
   onFinish: () => void
   onRetry: () => void
   onClose: () => void
+  onPracticeMore?: () => void
 }
 
-export function TestPanel({ test, pages, busy, onGoto, onHelp, onReview, onFinish, onRetry, onClose }: Props) {
+export function TestPanel({ test, pages, busy, onGoto, onHelp, onReview, onFinish, onRetry, onClose, onPracticeMore }: Props) {
+  const practice = test.kind === 'practice'
   const finished = test.status === 'finished'
   const answered = (q: PaperQuestion) => {
     const page = pages[q.pageId]
@@ -27,7 +29,7 @@ export function TestPanel({ test, pages, busy, onGoto, onHelp, onReview, onFinis
     <aside className="test-panel" aria-label="Test" onPointerDown={(e) => e.stopPropagation()}>
       <header className="test-head">
         <div>
-          <div className="test-kicker">{finished ? 'Marked' : test.status === 'reading' ? 'Reading the paper' : 'Test'}</div>
+          <div className="test-kicker">{finished ? 'Marked' : test.status === 'reading' ? 'Reading the paper' : practice ? 'Practice' : 'Test'}</div>
           <div className="test-title">{test.title}</div>
         </div>
         <span className="spacer" />
@@ -90,7 +92,14 @@ export function TestPanel({ test, pages, busy, onGoto, onHelp, onReview, onFinis
         <footer className="test-foot">
           <span className="muted">{nAnswered} of {test.questions.length} answered</span>
           <span className="spacer" />
-          <button className="btn primary" disabled={test.status !== 'ready' || !test.questions.length} onClick={onFinish}>Finish test</button>
+          <button className="btn primary" disabled={test.status !== 'ready' || !test.questions.length} onClick={onFinish}>{practice ? 'Finish & mark' : 'Finish test'}</button>
+        </footer>
+      )}
+      {finished && practice && onPracticeMore && (
+        <footer className="test-foot">
+          <span className="muted">{test.score && test.score.correct === test.score.total ? 'All right! Try a few more?' : 'Practice makes it stick.'}</span>
+          <span className="spacer" />
+          <button className="btn primary" disabled={!!busy} onClick={onPracticeMore}><Icon.target /> 5 more like this</button>
         </footer>
       )}
     </aside>

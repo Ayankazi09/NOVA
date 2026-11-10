@@ -143,7 +143,7 @@ export function ReadbackLayer({ page, view, phases, selectedRegionId, hoveredReg
   )
 }
 
-export type RegionMenuAction = 'ask' | 'read' | 'check' | 'complete' | 'solve' | 'plot' | 'problem' | 'close'
+export type RegionMenuAction = 'ask' | 'read' | 'check' | 'complete' | 'solve' | 'plot' | 'problem' | 'practice' | 'close'
 
 interface MenuProps {
   page: Page
@@ -153,7 +153,7 @@ interface MenuProps {
   onAction: (a: RegionMenuAction) => void
 }
 
-const MENU_W = 560
+const MENU_W = 660
 const MENU_H = 46
 
 /** Place the menu where it covers no other line or readback label: beside, above, then below the label. */
@@ -197,6 +197,7 @@ export function RegionMenu({ page, view, regionId, viewport, onAction }: MenuPro
       <button className="menu-btn" onClick={() => onAction('complete')}>Next step</button>
       {(!reading || /[=<>≤≥]/.test(text)) && <button className="menu-btn" onClick={() => onAction('solve')}>Solve</button>}
       {(!reading || /[xyθ]/i.test(text)) && <button className="menu-btn" onClick={() => onAction('plot')}><Icon.graph /> Graph</button>}
+      {!!text && /\d/.test(text) && <button className="menu-btn" onClick={() => onAction('practice')} title="NOVA writes 5 more questions like this one"><Icon.target /> Practice</button>}
       {!isProblem && /x/i.test(text) && text.includes('=') && !text.trim().endsWith('=') && <button className="menu-btn" onClick={() => onAction('problem')}>Set as problem</button>}
       <button className="icon-btn sm" aria-label="Clear selection" onClick={() => onAction('close')}><Icon.close /></button>
     </div>

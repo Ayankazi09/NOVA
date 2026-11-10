@@ -23,6 +23,7 @@ export function estimateSize(a: TutorAction): { w: number; h: number } {
     case 'write_ink':
     case 'write_lines':
     case 'write_table':
+    case 'draw_figure':
       return { w: 0, h: 0 }
   }
 }

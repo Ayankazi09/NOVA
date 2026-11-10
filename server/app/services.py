@@ -20,7 +20,7 @@ from .maths.linear import MathError, check_step, fmt, is_isolated, parse_equatio
 from .maths.solve import SolveError, run as solve_run, tokenize as solve_tokenize, verify_content
 from .maths.steps import explained_steps, next_step, solution_steps
 from .providers.bharatcode import parse_json_object, provider
-from .providers.prompts import SOLVE_ANY_INSTRUCTIONS, EXAM_NOTE, EXAM_REVIEW, PAPER_INSTRUCTIONS, RECOGNIZE_INSTRUCTIONS, RECOGNIZE_USER, TUTOR_INSTRUCTIONS
+from .providers.prompts import PRACTICE_INSTRUCTIONS, SOLVE_ANY_INSTRUCTIONS, EXAM_NOTE, EXAM_REVIEW, PAPER_INSTRUCTIONS, RECOGNIZE_INSTRUCTIONS, RECOGNIZE_USER, TUTOR_INSTRUCTIONS
 from .schemas.models import (
     Action,
     CheckResponse,
@@ -386,6 +386,11 @@ def _validate_actions(raw_actions: Any, req: TutorRequest, known: set[str], answ
                 if not header or not rows:
                     continue
                 obj = {"id": aid, "type": typ, "anchorRegionId": anchor if anchor in known else "page", "title": clean_text(item.get("title"), 60), "header": header, "rows": rows}
+            elif typ == "draw_figure":
+                fig = _clean_figure(item)
+                if fig is None:
+                    continue
+                obj = {"id": aid, "type": typ, "anchorRegionId": anchor if anchor in known else "page", **fig}
             elif typ == "speak":
                 text = red(clean_text(item.get("text"), MAX_SPEAK_CHARS))
                 if not text:
@@ -397,6 +402,79 @@ def _validate_actions(raw_actions: Any, req: TutorRequest, known: set[str], answ
         except ValidationError:
             continue
     return out
+
+
+def _point_name(v: Any) -> str:
+    return re.sub(r"[^A-Za-z0-9'′]", "", v if isinstance(v, str) else "")[:4]
+
+
+def _clean_figure(item: dict) -> dict | None:
+    """Keep only a figure that can be drawn: finite points, lines between known points, sane circles and labels."""
+    import math
+
+    points: dict[str, list[float]] = {}
+    raw_points = item.get("points")
+    if isinstance(raw_points, dict):
+        for name, xy in list(raw_points.items())[:16]:
+            n = _point_name(name)
+            try:
+                x, y = float(xy[0]), float(xy[1])
+            except (TypeError, ValueError, IndexError, KeyError):
+                continue
+            if n and math.isfinite(x) and math.isfinite(y) and abs(x) <= 1e4 and abs(y) <= 1e4:
+                points[n] = [x, y]
+    if not points:
+        return None
+
+    def pairs(key: str, limit: int) -> list[list[str]]:
+        out: list[list[str]] = []
+        for p in item.get(key) or []:
+            if isinstance(p, dict):
+                p = [p.get("from"), p.get("to")]
+            if not isinstance(p, (list, tuple)) or len(p) != 2:
+                continue
+            a, b = _point_name(p[0]), _point_name(p[1])
+            if a in points and b in points and a != b and [a, b] not in out and [b, a] not in out:
+                out.append([a, b])
+        return out[:limit]
+
+    segments = pairs("segments", 32)
+    dashed = [p for p in pairs("dashed", 12) if p not in segments and p[::-1] not in segments]
+    circles = []
+    for c in (item.get("circles") or [])[:4]:
+        if not isinstance(c, dict):
+            continue
+        centre = _point_name(c.get("center") or c.get("centre"))
+        try:
+            r = float(c.get("radius"))
+        except (TypeError, ValueError):
+            continue
+        if centre in points and math.isfinite(r) and 0 < r <= 1e4:
+            circles.append({"center": centre, "radius": r, "label": clean_text(c.get("label"), 24)})
+    if not segments and not dashed and not circles:
+        return None  # nothing to draw
+    xs = [p[0] for p in points.values()] + [points[c["center"]][0] + s * c["radius"] for c in circles for s in (-1, 1)]
+    ys = [p[1] for p in points.values()] + [points[c["center"]][1] + s * c["radius"] for c in circles for s in (-1, 1)]
+    if max(max(xs) - min(xs), max(ys) - min(ys)) <= 0:
+        return None
+    side_labels = []
+    for l in (item.get("sideLabels") or [])[:16]:
+        if not isinstance(l, dict) or not isinstance(l.get("between"), (list, tuple)) or len(l["between"]) != 2:
+            continue
+        a, b = _point_name(l["between"][0]), _point_name(l["between"][1])
+        text = clean_text(l.get("text"), 24)
+        if a in points and b in points and a != b and text:
+            side_labels.append({"between": [a, b], "text": text})
+    angle_labels = []
+    for l in (item.get("angleLabels") or [])[:10]:
+        if isinstance(l, dict) and _point_name(l.get("at")) in points and clean_text(l.get("text"), 16):
+            angle_labels.append({"at": _point_name(l.get("at")), "text": clean_text(l.get("text"), 16)})
+    right = [n for n in dict.fromkeys(_point_name(x) for x in (item.get("rightAngles") or [])) if n in points][:8]
+    notes = [t for t in (clean_text(x, 80) for x in (item.get("notes") or []) if isinstance(x, str)) if t][:5]
+    return {
+        "title": clean_text(item.get("title"), 60), "points": points, "segments": segments, "dashed": dashed, "circles": circles,
+        "sideLabels": side_labels, "angleLabels": angle_labels, "rightAngles": right, "notes": notes,
+    }
 
 
 async def _ask_model(req: TutorRequest, known: set[str], check: CheckResponse | None) -> tuple[str, list[dict], str]:
@@ -411,7 +489,63 @@ async def _ask_model(req: TutorRequest, known: set[str], check: CheckResponse | 
     explanation = clean_text(obj.get("explanation"), 600)
     if not explanation:
         raise ApiError("INVALID_MODEL_OUTPUT", "The tutor reply was empty. Retry.", rid)
-    return explanation, obj.get("actions") or [], settings.model
+    actions = obj.get("actions") or []
+    explanation, actions = _write_listed(req, explanation, clean_text(obj.get("explanation"), 4000), actions)
+    return explanation, actions, settings.model
+
+
+_WANTS_WRITTEN = re.compile(
+    r"\b(write|add|put|give|make|create|list|set|need|want)\b.*\b(questions?|problems?|sums?|exercises?|examples?|formulas?|formulae|identit(?:y|ies)|notes?|steps?)\b",
+    re.IGNORECASE | re.DOTALL,
+)
+_NUMBERED = re.compile(r"^\s*(?:Q\.?\s*)?(\d{1,2})\s*[.):]\s+(\S.*)$")
+
+
+def _wrap_line(text: str, width: int = 76) -> list[str]:
+    out, cur = [], ""
+    for word in text.split():
+        if cur and len(cur) + 1 + len(word) > width:
+            out.append(cur)
+            cur = "   " + word  # continuation lines sit under the question text
+        else:
+            cur = f"{cur} {word}" if cur else word
+    if cur:
+        out.append(cur)
+    return out
+
+
+def _write_listed(req: TutorRequest, explanation: str, full: str, actions: list) -> tuple[str, list]:
+    """The student asked for questions / notes on the page, but the model only listed them in the chat:
+    write that numbered list onto the page, so asking NOVA to write something always writes it."""
+    if not isinstance(actions, list):
+        actions = []
+    if any(isinstance(a, dict) and a.get("type") in ("write_lines", "write_table", "draw_figure") for a in actions):
+        return explanation, actions
+    if req.exam or not _WANTS_WRITTEN.search(req.question or ""):
+        return explanation, actions
+    items: list[str] = []
+    intro: list[str] = []
+    for raw in full.splitlines():
+        m = _NUMBERED.match(raw)
+        if m:
+            items.append(f"{m.group(1)}. {m.group(2).strip()}")
+        elif raw.strip():
+            if items:
+                if raw[:1].isspace():
+                    items[-1] += " " + raw.strip()  # a wrapped question
+            else:
+                intro.append(raw.strip())
+    if len(items) < 2:
+        return explanation, actions
+    lines: list[dict] = []
+    for it in items:
+        for part in _wrap_line(it):
+            if len(lines) < 20:
+                lines.append({"text": part, "ink": "black"})
+    title = "Practice questions" if re.search(r"question|problem|sum|exercise|example", req.question, re.IGNORECASE) else "Notes"
+    written = {"type": "write_lines", "anchorRegionId": "page", "title": title, "lines": lines}
+    short = (intro[0] if intro else "").rstrip(":").strip()
+    return (short[:200] + ". I have written them on your page." if short else "I have written them on your page."), [written, *actions][:MAX_ACTIONS]
 
 
 def _needs_accepted(req: TutorRequest, need_current: bool) -> None:
@@ -846,6 +980,49 @@ async def analyze_paper_page(req) -> dict:
         await _verify_answer(item)
         out.append(item)
     return {"pageIndex": req.pageIndex, "questions": out, "latencyMs": int((time.perf_counter() - started) * 1000)}
+
+
+async def practice(req) -> dict:
+    """New practice questions like an example (or on a topic), each with an answer checked by the exact engine."""
+    rid = str(req.requestId)
+    topic = clean_text(req.topic, 80)
+    example = clean_math(req.example, 300)
+    if not topic and not example:
+        raise ApiError("INVALID_INPUT", "Give a topic or an example question to practise.", rid, retryable=False)
+    user = f"COUNT: {req.count}\nTOPIC: {topic or '(same as the example)'}\nEXAMPLE: {example or '(none)'}"
+    started = time.perf_counter()
+    reply = await provider.generate(PRACTICE_INSTRUCTIONS.format(count=req.count), user, max_tokens=4000, request_id=rid, effort="low")
+    if reply.incomplete:
+        raise ApiError("INVALID_MODEL_OUTPUT", "The practice set was cut off. Retry.", rid)
+    try:
+        obj = parse_json_object(reply.text)
+    except ValueError:
+        raise ApiError("INVALID_MODEL_OUTPUT", "NOVA could not write practice questions. Retry.", rid)
+    out = []
+    for q in (obj.get("questions") or [])[: req.count]:
+        if not isinstance(q, dict):
+            continue
+        text = clean_text(q.get("text"), 400)
+        if not text:
+            continue
+        item = {
+            "number": str(len(out) + 1),
+            "text": text,
+            "kind": q.get("kind") if q.get("kind") in ("mcq", "numeric", "expression", "equation") else "other",
+            "options": [clean_text(o, 120) for o in (q.get("options") or []) if isinstance(o, str)][:6],
+            "answer": clean_math(q.get("answer"), 200),
+            "check": clean_math(q.get("check"), 200),
+        }
+        await _verify_answer(item)
+        if item["answer"]:
+            out.append(item)
+    if not out:
+        raise ApiError("INVALID_MODEL_OUTPUT", "NOVA could not write practice questions. Retry.", rid)
+    return {
+        "topic": clean_text(obj.get("topic"), 40) or topic or "Practice",
+        "questions": [{k: v for k, v in it.items() if k != "check"} for it in out],
+        "latencyMs": int((time.perf_counter() - started) * 1000),
+    }
 
 
 def _final_value(answer: str) -> str:

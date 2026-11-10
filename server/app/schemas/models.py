@@ -219,8 +219,42 @@ class TableAction(BaseModel):
     unverifiedCells: int = 0
 
 
+class FigureCircle(BaseModel):
+    center: Annotated[str, Field(max_length=4)]
+    radius: float = Field(gt=0, le=1e4)
+    label: Annotated[str, Field(max_length=24)] = ""
+
+
+class FigureLabel(BaseModel):
+    between: Annotated[list[Annotated[str, Field(max_length=4)]], Field(min_length=2, max_length=2)]
+    text: Annotated[str, Field(max_length=24)]
+
+
+class FigureAngle(BaseModel):
+    at: Annotated[str, Field(max_length=4)]
+    text: Annotated[str, Field(max_length=16)] = ""
+
+
+class FigureAction(BaseModel):
+    """A geometry figure NOVA draws on the page: named points (maths coordinates, y up), the segments and circles
+    between them, and labels. The client draws it by hand, to scale."""
+
+    id: str
+    type: Literal["draw_figure"]
+    anchorRegionId: str
+    title: Annotated[str, Field(max_length=60)] = ""
+    points: Annotated[dict[str, Annotated[list[float], Field(min_length=2, max_length=2)]], Field(min_length=1, max_length=16)]
+    segments: Annotated[list[Annotated[list[str], Field(min_length=2, max_length=2)]], Field(max_length=32)] = []
+    dashed: Annotated[list[Annotated[list[str], Field(min_length=2, max_length=2)]], Field(max_length=12)] = []
+    circles: Annotated[list[FigureCircle], Field(max_length=4)] = []
+    sideLabels: Annotated[list[FigureLabel], Field(max_length=16)] = []
+    angleLabels: Annotated[list[FigureAngle], Field(max_length=10)] = []
+    rightAngles: Annotated[list[Annotated[str, Field(max_length=4)]], Field(max_length=8)] = []
+    notes: Annotated[list[Annotated[str, Field(max_length=80)]], Field(max_length=5)] = []
+
+
 Action = Annotated[
-    Union[HighlightAction, NoteAction, EquationAction, GroupsAction, PlotAction, SpeakAction, LinesAction, TableAction],
+    Union[HighlightAction, NoteAction, EquationAction, GroupsAction, PlotAction, SpeakAction, LinesAction, TableAction, FigureAction],
     Field(discriminator="type"),
 ]
 
@@ -302,6 +336,29 @@ class PaperQuestion(BaseModel):
 class PaperAnalyzeResponse(BaseModel):
     pageIndex: int
     questions: list[PaperQuestion]
+    latencyMs: int
+
+
+class PracticeRequest(Strict):
+    requestId: UUID
+    topic: Annotated[str, Field(max_length=80)] = ""
+    example: Annotated[str, Field(max_length=300)] = ""
+    count: int = Field(default=5, ge=1, le=10)
+
+
+class PracticeQuestion(BaseModel):
+    number: str
+    text: str
+    kind: str = "other"
+    options: list[str] = []
+    answer: str = ""
+    answerVerified: bool = False
+    corrected: bool = False
+
+
+class PracticeResponse(BaseModel):
+    topic: str
+    questions: list[PracticeQuestion]
     latencyMs: int
 
 

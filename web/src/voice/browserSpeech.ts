@@ -34,17 +34,37 @@ function explain(code: string): string | undefined {
 
 const MAX_LISTEN_MS = 20_000
 
+/** The accent to listen for. In India that is Indian English, even when the browser itself is set to en-US
+ *  (the usual default there): the US model mishears Indian accents much more often. */
+export function speechLang(): string {
+  let tz = ''
+  try {
+    tz = Intl.DateTimeFormat().resolvedOptions().timeZone ?? ''
+  } catch {
+    /* no Intl: fall back to the browser language */
+  }
+  if (tz === 'Asia/Kolkata' || tz === 'Asia/Calcutta') return 'en-IN'
+  return navigator.language || 'en-IN'
+}
+
+export interface ListenOptions {
+  /** called with everything heard so far, each time the browser hears more (so the words can be shown live) */
+  onPartial?: (text: string) => void
+  /** keep listening through pauses (desktop only: continuous mode repeats words on Android) */
+  continuous?: boolean
+}
+
 /** Start listening for one spoken question; onDone gets the transcript ('' if nothing was heard) or an error message. */
-export function listen(onDone: (text: string, error?: string) => void): BrowserListen {
+export function listen(onDone: (text: string, error?: string) => void, opts: ListenOptions = {}): BrowserListen {
   const C = ctor()
   if (!C) {
     onDone('', 'Voice input is not supported in this browser. Type instead, or use Chrome.')
     return { stop() {}, cancel() {} }
   }
   const r = new C()
-  r.lang = navigator.language || 'en-IN'
+  r.lang = speechLang()
   r.interimResults = true // keep partial words, so stopping early still delivers them
-  r.continuous = false // one question, ends at the pause; continuous mode repeats words on Android
+  r.continuous = !!opts.continuous // default: one question, ends at the pause; continuous mode repeats words on Android
   let text = ''
   let error: string | undefined
   let cancelled = false
@@ -57,7 +77,8 @@ export function listen(onDone: (text: string, error?: string) => void): BrowserL
     onDone(text, error)
   }
   r.onresult = (e) => {
-    text = Array.from(e.results).map((x) => x[0]?.transcript ?? '').join(' ').trim()
+    text = Array.from(e.results).map((x) => x[0]?.transcript ?? '').join(' ').replace(/\s+/g, ' ').trim()
+    if (!cancelled && !finished) opts.onPartial?.(text)
   }
   r.onerror = (e) => {
     error = explain(e.error) ?? error

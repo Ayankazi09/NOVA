@@ -333,3 +333,66 @@ def test_tutor_check_on_graph_equation_plots(monkeypatch):
     b = {"context": ctx(regionId="r1"), "intent": "check", "current": {"regionId": "r1", "text": "y = 2x + 1", "accepted": True}, "regionIds": ["r1"]}
     body = client.post("/api/v1/tutor", json=b).json()
     assert body["actions"][0]["type"] == "plot_function"
+
+
+def test_questions_listed_only_in_chat_are_written_on_the_page(monkeypatch):
+    """Asked to write practice questions, the model sometimes lists them in the chat and sends no action."""
+    reply = {
+        "explanation": "Here are 3 practice questions on linear equations:\n\n1. Solve: 3x + 7 = 22\n\n2. Solve: 5(x - 2) = 2x + 4\n\n"
+        "3. A taxi charges a flat fee of 50 rupees plus 15 rupees per kilometre. If the total fare was 200 rupees, how far did the passenger travel?",
+        "actions": [],
+    }
+    use(monkeypatch, FakeProvider(json.dumps(reply)))
+    body = {"context": ctx(regionId="page"), "intent": "ask", "question": "give me 3 questions to practise on linear equations", "regionIds": []}
+    r = client.post("/api/v1/tutor", json=body)
+    assert r.status_code == 200, r.text
+    out = r.json()
+    written = [a for a in out["actions"] if a["type"] == "write_lines"]
+    assert len(written) == 1 and written[0]["anchorRegionId"] == "page"
+    lines = written[0]["lines"]
+    assert lines[0].startswith("1. Solve: 3x + 7 = 22") and any(l.startswith("3. A taxi") for l in lines)
+    assert all(len(l) <= 80 for l in lines) and len(lines) >= 4  # the long question wraps
+    assert "written them on your page" in out["explanation"]
+
+
+def test_ordinary_answers_are_not_written_on_the_page(monkeypatch):
+    reply = {"explanation": "Two ideas:\n1. Expand the bracket first.\n2. Then collect the x terms.", "actions": []}
+    use(monkeypatch, FakeProvider(json.dumps(reply)))
+    r = client.post("/api/v1/tutor", json=tutor_body())  # "Why is it wrong?"
+    assert r.status_code == 200, r.text
+    assert not [a for a in r.json()["actions"] if a["type"] == "write_lines"]
+
+
+def test_draw_figure_is_validated_and_kept(monkeypatch):
+    reply = {
+        "explanation": "Here is square ABCD.",
+        "actions": [{
+            "type": "draw_figure", "anchorRegionId": "page", "title": "Square ABCD",
+            "points": {"A": [0, 0], "B": [4, 0], "C": [4, 4], "D": [0, 4], "bad": ["x", 1]},
+            "segments": [["A", "B"], ["B", "C"], ["C", "D"], ["D", "A"], ["A", "Z"], ["B", "A"]],
+            "dashed": [["A", "C"]],
+            "sideLabels": [{"between": ["A", "B"], "text": "4 cm"}, {"between": ["A", "Q"], "text": "?"}],
+            "rightAngles": ["A", "B", "C", "D", "Q"], "angleLabels": [{"at": "A", "text": "90°"}],
+            "notes": ["AB = BC = CD = DA"],
+        }],
+    }
+    use(monkeypatch, FakeProvider(json.dumps(reply)))
+    body = {"context": ctx(regionId="page"), "intent": "ask", "question": "draw a square ABCD", "regionIds": []}
+    r = client.post("/api/v1/tutor", json=body)
+    assert r.status_code == 200, r.text
+    fig = [a for a in r.json()["actions"] if a["type"] == "draw_figure"]
+    assert len(fig) == 1
+    f = fig[0]
+    assert set(f["points"]) == {"A", "B", "C", "D"} and f["anchorRegionId"] == "page"
+    assert f["segments"] == [["A", "B"], ["B", "C"], ["C", "D"], ["D", "A"]]  # unknown point and duplicate dropped
+    assert f["dashed"] == [["A", "C"]] and f["rightAngles"] == ["A", "B", "C", "D"]
+    assert f["sideLabels"] == [{"between": ["A", "B"], "text": "4 cm"}]
+
+
+def test_draw_figure_with_nothing_to_draw_is_dropped(monkeypatch):
+    reply = {"explanation": "A point.", "actions": [{"type": "draw_figure", "anchorRegionId": "page", "points": {"A": [0, 0]}, "segments": []}]}
+    use(monkeypatch, FakeProvider(json.dumps(reply)))
+    body = {"context": ctx(regionId="page"), "intent": "ask", "question": "draw a point", "regionIds": []}
+    r = client.post("/api/v1/tutor", json=body)
+    assert r.status_code == 200, r.text
+    assert not [a for a in r.json()["actions"] if a["type"] == "draw_figure"]

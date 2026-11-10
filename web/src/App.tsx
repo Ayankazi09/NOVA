@@ -24,6 +24,7 @@ export default function App({ tester }: { tester?: Tester }) {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [startAction, setStartAction] = useState<StartAction | null>(null)
+  const [showWelcome, setShowWelcome] = useState(false)
   const savedDirty = useRef(0)
   const stateRef = useRef(state)
   stateRef.current = state
@@ -58,6 +59,7 @@ export default function App({ tester }: { tester?: Tester }) {
     void (async () => {
       try {
         void loadLibrary()
+        if (!(await getMeta<boolean>('firstRunSeen'))) setShowWelcome(true)
         const s = await getMeta<AppSettings>('settings')
         // older saved settings started with Assist off: switch it on once (people can still turn it off)
         if (s) setSettingsState({ ...DEFAULT_SETTINGS, ...s, ...((s as AppSettings).settingsV !== 2 ? { assist: true, assistConsent: true, autoAnswer: true, settingsV: 2 } : {}) })
@@ -73,6 +75,29 @@ export default function App({ tester }: { tester?: Tester }) {
       }
     })()
   }, [open, create])
+
+  /** Practice from the library: in the "Practice" notebook (made the first time). */
+  const practice = useCallback(async (topic: string) => {
+    const existing = (await listNotebooks()).find((n) => n.title === 'Practice')
+    if (existing) return open(existing.id, { type: 'practice', topic })
+    await create({ type: 'practice', topic }, 'Practice')
+  }, [open, create])
+
+  /** "Try this" on the library: in the notebook you were last writing in (a new one if there is none). */
+  const tryIt = useCallback(async (what: 'graph' | 'diagram' | 'ask') => {
+    const action: StartAction =
+      what === 'graph' ? { type: 'ask', text: 'Draw the graph of y = x² − 4 on my page and mark where it crosses the axes' }
+      : what === 'ask' ? { type: 'ask', text: 'Simplify (x + 3)² − 9 and write the steps on my page' }
+      : { type: 'tip', text: 'Draw a triangle, label its sides and angles (like 5 cm, 40°), then write “find x” beside it. NOVA reads the diagram and solves it.' }
+    const latest = (await listNotebooks()).filter((n) => n.id !== 'nb_scratch')[0]
+    if (latest) return open(latest.id, action)
+    await create(action)
+  }, [open, create])
+
+  const welcomeDone = () => {
+    setShowWelcome(false)
+    void setMeta('firstRunSeen', true).catch(() => undefined)
+  }
 
   const setSettings = (s: AppSettings) => {
     setSettingsState(s)
@@ -117,7 +142,7 @@ export default function App({ tester }: { tester?: Tester }) {
   if (screen === 'library' || !state)
     return (
       <>
-        <Library tester={tester} onSwitchTester={() => { signOutTester(); location.reload() }} onOpen={(id) => void open(id)} onCreate={() => void create()} onImportPaper={(f) => void create({ type: 'pdf', file: f }, f.name.replace(/.pdf$/i, '').slice(0, 60))} notify={setNotice} />
+        <Library tester={tester} onSwitchTester={() => { signOutTester(); location.reload() }} onOpen={(id) => void open(id)} onCreate={() => void create()} onImportPaper={(f) => void create({ type: 'pdf', file: f }, f.name.replace(/.pdf$/i, '').slice(0, 60))} onPractice={(t) => void practice(t)} onTry={(w) => void tryIt(w)} notify={setNotice} />
         {toastEl}
       </>
     )
@@ -135,6 +160,8 @@ export default function App({ tester }: { tester?: Tester }) {
         onRetrySave={() => void save()}
         startAction={startAction}
         onStartConsumed={() => setStartAction(null)}
+        showWelcome={showWelcome}
+        onWelcomeDone={welcomeDone}
         onBack={async () => {
           await save()
           dispatch({ type: 'close' })

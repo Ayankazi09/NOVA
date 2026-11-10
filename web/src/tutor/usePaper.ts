@@ -10,6 +10,7 @@ import { renderRegion } from '../recognition/render'
 import { putAsset } from '../storage/db'
 import { checksumBytes } from '../storage/backup'
 import { pageForModel, readPdf } from '../storage/pdf'
+import { buildPracticeSheet } from './practiceSheet'
 import { compose } from '../handwriting/compose'
 import { getLibrary } from '../handwriting/library'
 import { placeInk } from '../handwriting/place'
@@ -176,6 +177,40 @@ export function usePaper(o: Options) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [o.currentPageId])
 
+  /** Practice: NOVA writes a worksheet like the example line (or on a topic), with a checked answer key. */
+  const startPractice = useCallback(async (p: { topic?: string; example?: string; count?: number }) => {
+    const count = p.count ?? 5
+    try {
+      setBusy(p.example ? `NOVA is writing ${count} questions like “${p.example.slice(0, 40)}”…` : `NOVA is writing ${count} ${p.topic} questions…`)
+      const res = await api.practice({ requestId: uuid(), topic: p.topic, example: p.example, count })
+      if (!res.questions.length) throw new Error('NOVA could not write practice questions. Try again.')
+      const topic = res.topic || p.topic || 'Practice'
+      const title = `Practice · ${topic}`
+      const sheet = await buildPracticeSheet(title, p.example ? `${res.questions.length} questions like ${p.example}. Write your working under each one.` : `${res.questions.length} questions. Write your working under each one.`, res.questions)
+      const bytes = await sheet.image.arrayBuffer()
+      const assetId = shortId('as')
+      await putAsset({ id: assetId, mime: 'image/png', bytes, width: sheet.imageW, height: sheet.imageH, checksum: checksumBytes(bytes) })
+      const nb = doc(o).notebook
+      const page = newPage(nb.id, title, { width: sheet.width + 1200, height: sheet.height, backgroundAssetId: assetId, paper: 'squared', docText: sheet.lines, bg: { w: sheet.width, h: sheet.height } })
+      o.dispatch({ type: 'addPage', page, after: o.currentPageId })
+      const questions: PaperQuestion[] = res.questions.map((q, i) => ({
+        id: shortId('q'), number: q.number, pageId: page.id, text: q.text, bounds: sheet.bounds[i], kind: q.kind, options: q.options,
+        answer: q.answer, answerVerified: q.answerVerified, corrected: q.corrected, helpCount: 0,
+      }))
+      const test: PaperTest = { id: shortId('test'), title, kind: 'practice', topic, source: p.example, status: 'ready', pageIds: [page.id], questions, progress: { done: 1, total: 1 }, createdAt: Date.now() }
+      saveTest(test)
+      o.openPage(page.id)
+      o.toast(`${questions.length} practice questions ready. Write your answers under each one, then tap Finish.`)
+      return test.id
+    } catch (e) {
+      o.toast((e as Error).message || 'Could not make a practice set.')
+      return null
+    } finally {
+      setBusy(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [o.currentPageId])
+
   const circle = (q: PaperQuestion, reason: string) => {
     const id = `circle:${q.id}:${Date.now()}`
     const obj: TutorObject = {
@@ -295,7 +330,7 @@ export function usePaper(o: Options) {
       // the score, in red, at the top of the first page — like a teacher would
       const first = doc(o).pages[t0.pageIds[0]]
       const sc = compose(`${correct}/${t0.questions.length}`, { height: 64, slant: 0.12, width: 4.5, seed: 9 })
-      const sx = first.width - sc.width - 48, sy = 28
+      const sx = (first.bg?.w ?? first.width) - sc.width - 48, sy = 28 // on the sheet itself, top right
       const sid = `score:${testId}`
       o.dispatch({
         type: 'applyTutorBatch', pageId: first.id, contentRevision: first.contentRevision, batchId: sid, turns: [], regionScoped: true,
@@ -314,5 +349,5 @@ export function usePaper(o: Options) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  return { busy, importPaper, help, review, finish, retryFailed }
+  return { busy, importPaper, startPractice, help, review, finish, retryFailed }
 }

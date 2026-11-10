@@ -17,6 +17,7 @@ import { placeInk } from '../handwriting/place'
 import { chosenOption } from './options'
 import { composeExplained } from '../handwriting/explain'
 import { blockBounds, composeLines, composeTable, moveBlock, placeBlock } from '../handwriting/blocks'
+import { composeFigure, figureText } from '../handwriting/figure'
 import { styleFromRegion } from '../handwriting/style'
 
 export type Intent = TutorPayload['intent']
@@ -500,7 +501,7 @@ export function useNova(o: Options) {
     // the explanation rides on the main visual (graph / equation) as its caption; otherwise it becomes a note
     const visual = actions.find((a) => a.type === 'write_equation' || a.type === 'plot_function')
     const pageLevel = ctx.regionId === 'page'
-    if (res.explanation && !hasNote && !visual && !pageLevel && !actions.some((a) => a.type === 'write_lines' || a.type === 'write_table')) actions.unshift({ id: `${ctx.requestId}:x`, type: 'add_note', anchorRegionId: ctx.regionId, text: res.explanation })
+    if (res.explanation && !hasNote && !visual && !pageLevel && !actions.some((a) => a.type === 'write_lines' || a.type === 'write_table' || a.type === 'draw_figure')) actions.unshift({ id: `${ctx.requestId}:x`, type: 'add_note', anchorRegionId: ctx.regionId, text: res.explanation })
     const existing = new Set(p.tutorObjects.map((t) => t.id))
     const fresh = actions.filter((a, i) => !existing.has(a.id) && actions.findIndex((b) => b.id === a.id) === i)
     const regionById = new Map(p.regions.map((r) => [r.id, r]))
@@ -525,8 +526,10 @@ export function useNova(o: Options) {
     const replaced: string[] = []
     for (let k = 0; k < fresh.length; k++) {
       const a = fresh[k]
-      if (a.type !== 'write_lines' && a.type !== 'write_table') continue
-      const block = a.type === 'write_table'
+      if (a.type !== 'write_lines' && a.type !== 'write_table' && a.type !== 'draw_figure') continue
+      const block = a.type === 'draw_figure'
+        ? composeFigure(a, { ...contentStyle, seed: contentStyle.seed + k }, getLibrary())
+        : a.type === 'write_table'
         ? composeTable(a.title, a.header, a.rows, { ...contentStyle, seed: contentStyle.seed + k }, getLibrary())
         : composeLines(a.title, a.lines, { ...contentStyle, seed: contentStyle.seed + k }, getLibrary(), a.inks)
       const near = a.anchorRegionId !== 'page' ? regionById.get(a.anchorRegionId)?.bounds : anchorRects.current.get(ctx.requestId)
@@ -542,8 +545,8 @@ export function useNova(o: Options) {
       }
       const strokes = moveBlock(block, at.x, at.y)
       const bounds = blockBounds({ strokes, w: block.w, h: block.h })
-      const text = a.type === 'write_table' ? [a.header.join(' | '), ...a.rows.map((r) => r.join(' | '))].join('\n') : a.lines.join('\n')
-      fresh[k] = { id: a.id, type: 'write_ink', anchorRegionId: 'page', text, strokes, width: contentStyle.width, purpose: 'content', verified: a.type === 'write_table' ? a.unverifiedCells === 0 : a.verified.every(Boolean), tone: 'nova', colors: block.colors }
+      const text = a.type === 'draw_figure' ? figureText(a) : a.type === 'write_table' ? [a.header.join(' | '), ...a.rows.map((r) => r.join(' | '))].join('\n') : a.lines.join('\n')
+      fresh[k] = { id: a.id, type: 'write_ink', anchorRegionId: 'page', text, strokes, width: contentStyle.width, purpose: 'content', verified: a.type === 'draw_figure' ? true : a.type === 'write_table' ? a.unverifiedCells === 0 : a.verified.every(Boolean), tone: 'nova', colors: block.colors }
       inked.set(a.id, { strokes, width: contentStyle.width, bounds })
       pending.tutorObjects.push({ id: a.id, layout: { ...bounds, leader: false }, status: 'active', action: fresh[k] } as TutorObject)
     }
