@@ -128,6 +128,7 @@ export interface RecognizeResult {
 export interface TutorResult {
   context: RequestContext
   explanation: string
+  detail?: string | null
   actions: TutorAction[]
   check?: (Omit<CheckResult, 'againstProblemId' | 'problemText'> & { context: RequestContext }) | null
   verifiedBy: 'deterministic' | 'model' | 'none'

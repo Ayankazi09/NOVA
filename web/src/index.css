@@ -255,6 +255,12 @@ hr { border: 0; border-top: 1px solid var(--rule); margin: 6px 0; }
 .bubble.tutor { align-self: flex-start; background: var(--surface); border: 1px solid var(--rule); border-left: 3px solid var(--nova); border-radius: 4px 14px 14px 4px; color: #1b2a55; }
 .bubble.tutor.error { border-left-color: var(--red); color: var(--red); }
 .bubble.tutor.notice { border-left-color: #e9c46a; color: var(--ink-2); }
+.bubble-more { margin-top: 6px; font-size: 13.5px; }
+.bubble-more summary { cursor: pointer; color: var(--nova); font-weight: 500; list-style: none; }
+.bubble-more summary::-webkit-details-marker { display: none; }
+.bubble-more summary::before { content: '▸ '; }
+.bubble-more[open] summary::before { content: '▾ '; }
+.bubble-more > div { margin-top: 4px; color: var(--ink-2); }
 .bubble.thinking { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-2); }
 .dots { display: inline-flex; gap: 3px; }
 .dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--nova); animation: blink 1.2s infinite ease-in-out; }

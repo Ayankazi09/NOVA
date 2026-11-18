@@ -375,8 +375,18 @@ export function useNova(o: Options) {
       const selText = sel ? readingText(p1.readings[sel]) : undefined
       let problemId: string | undefined
       let currentId: string | undefined
-      if ((intent === 'ask' && !sel) || extra?.exam) {
-        // a typed/spoken question with nothing selected is about the page or maths in general
+      if (extra?.exam) {
+        // exam help is about the printed question, not a written line
+      } else if (intent === 'ask' && !sel) {
+        // a typed/spoken question with nothing selected: ground it in the page's problem and the latest working, if any
+        // (the tutor answers off-topic questions directly and ignores this context)
+        problemId = p1.problemRegionId && p1.regions.some((r) => r.id === p1.problemRegionId) ? p1.problemRegionId : undefined
+        currentId = pickCurrent(p1, null)
+        if (currentId === problemId) currentId = undefined
+        if (!problemId && currentId) {
+          problemId = currentId
+          currentId = undefined
+        }
       } else if (intent === 'plot' || intent === 'solve') {
         currentId = sel ?? pickCurrent(p1, null)
       } else if (sel && (sel === p1.problemRegionId || (selText && !isEquationInX(selText)))) {
@@ -569,7 +579,7 @@ export function useNova(o: Options) {
     const turns: Turn[] = []
     const now = Date.now()
     turns.push({ role: 'student', text: payload.question || intentLabel(payload.intent), at: now, problemId })
-    turns.push({ role: 'tutor', text: res.explanation, at: now, problemId })
+    turns.push({ role: 'tutor', text: res.explanation, ...(res.detail ? { detail: res.detail } : {}), at: now, problemId })
     const assisted = payload.intent !== 'check' && payload.intent !== 'plot'
     for (const id of replaced) opts.current.dispatch({ type: 'dismissTutor', pageId: p.id, id })
     // make sure the endless sheet covers whatever NOVA just wrote, so it can be scrolled to

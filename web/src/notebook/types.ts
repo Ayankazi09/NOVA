@@ -112,6 +112,7 @@ export interface TutorObject {
 export interface Turn {
   role: 'student' | 'tutor'
   text: string
+  detail?: string // longer explanation, opened on request
   at: number
   problemId?: string
 }

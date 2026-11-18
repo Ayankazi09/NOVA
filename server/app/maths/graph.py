@@ -29,6 +29,9 @@ CONSTS = {"pi": math.pi, "e": math.e}
 # ----------------------------------------------------------------- AST
 
 
+_ASCII_DIGITS = "0123456789"
+
+
 @dataclass(frozen=True)
 class N:
     v: float
@@ -77,9 +80,9 @@ def tokenize(text: str) -> list[tuple[str, object]]:
         c = s[i]
         if c.isspace():
             i += 1
-        elif c.isdigit() or (c == "." and i + 1 < len(s) and s[i + 1].isdigit()):
+        elif (c in _ASCII_DIGITS) or (c == "." and i + 1 < len(s) and (s[i + 1] in _ASCII_DIGITS)):
             j = i
-            while j < len(s) and (s[j].isdigit() or s[j] == "."):
+            while j < len(s) and ((s[j] in _ASCII_DIGITS) or s[j] == "."):
                 j += 1
             try:
                 v = float(s[i:j])

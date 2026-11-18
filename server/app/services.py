@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import logging
 import os
 import re
@@ -275,6 +276,19 @@ def _graph_explanation(p: PlotPayload) -> str:
     return " ".join(bits)
 
 
+_FULL = re.compile(
+    r"\b(full|complete|whole|worked|step[- ]by[- ]step)\b.*\b(solution|answer|working|steps?)\b|\b(show|give|tell)\b.*\b(answer|solution|all (the )?steps)\b"
+    r"|\bsolve (it|this|the whole)\b|\bwhat is the answer\b",
+    re.IGNORECASE,
+)
+_DETAIL: contextvars.ContextVar[str | None] = contextvars.ContextVar("tutor_detail", default=None)
+
+
+def wants_full_solution(req: TutorRequest) -> bool:
+    """The student explicitly asked for the worked solution (never in an unrevealed exam)."""
+    return bool(req.question and _FULL.search(req.question)) and not (req.exam and not req.exam.reveal)
+
+
 def _build_prompt(req: TutorRequest, known: set[str], check: CheckResponse | None) -> str:
     lines = [f"INTENT: {req.intent}", f"KNOWN_REGIONS: {', '.join(sorted(known))}", f"SELECTED_REGION: {req.context.regionId}"]
     lines.append("STUDENT_WORK:")
@@ -297,14 +311,36 @@ def _build_prompt(req: TutorRequest, known: set[str], check: CheckResponse | Non
     if not req.problem and not req.current:
         lines.append("NOTE: nothing is selected, so the question is about the page or maths in general, not a particular line.")
     if req.history:
-        lines.append("HISTORY (oldest first):")
+        lines.append("HISTORY of this problem (oldest first):")
         for t in req.history[-6:]:
-            lines.append(f"  {t.role}: {t.text}")
+            lines.append(f"  {'NOVA' if t.role == 'tutor' else 'student'}: {t.text}")
+        if sum(1 for t in req.history[-4:] if t.role == "tutor") >= 2:
+            lines.append("NOTE: you have already given hints here; if the student is still stuck, change the approach.")
+    if wants_full_solution(req):
+        lines.append("FULL SOLUTION REQUESTED: give the ordered worked solution with a reason for each step (write_lines).")
+    elif req.current and not req.current.accepted and req.intent in ("ask", "hint", "explain"):
+        lines.append(
+            f"READING UNCONFIRMED: NOVA may have misread the line \"{req.current.text}\". Do not judge it yet: in \"say\" only ask the "
+            "student to confirm what they wrote (offer the likely alternative), \"next\" = \"Tap the line to correct it if NOVA misread it.\", no actions."
+        )
     if req.exam:
         note = EXAM_REVIEW if req.exam.reveal else EXAM_NOTE
         lines.append(note.format(number=req.exam.number, text=req.exam.text, answer=req.exam.answer))
     lines.append(f"QUESTION: {req.question or '(no question typed; give the most useful single hint for the intent)'}")
     return "\n".join(lines)
+
+
+_ASKED_TO_WRITE = re.compile(r"(write|add|put|make|table|notes?|formulas?|list)", re.IGNORECASE)
+
+
+def _is_students_step(req: TutorRequest, line: str, hide: bool) -> bool:
+    """A line that is a correct transformed form of the problem (2x + 6 = 14 for 2(x + 3) = 14) is the student's next step."""
+    if not hide or not req.problem or wants_full_solution(req) or _ASKED_TO_WRITE.search(req.question or ""):
+        return False
+    try:
+        return check_step(req.problem.text, line).status in ("equivalent", "solved") and _shape_eq(line) != _shape_eq(req.problem.text)
+    except (MathError, ValueError, ZeroDivisionError):
+        return False
 
 
 def _validate_actions(raw_actions: Any, req: TutorRequest, known: set[str], answer: str | None, value: str | None = None) -> list[Any]:
@@ -344,6 +380,12 @@ def _validate_actions(raw_actions: Any, req: TutorRequest, known: set[str], answ
                     continue  # completion equations are produced only by the validated complete path
                 if value and hide and re.search(r"=\s*" + re.escape(value) + r"\s*$", expr):
                     continue
+                if hide and req.problem and not wants_full_solution(req):
+                    try:
+                        if check_step(req.problem.text, expr).status in ("equivalent", "solved"):
+                            continue  # a correct next line is the student's step to take, not a hint
+                    except (MathError, ValueError, ZeroDivisionError):
+                        pass
                 try:
                     l, r = parse_equation(expr)
                     solution_set(l, r)
@@ -373,6 +415,8 @@ def _validate_actions(raw_actions: Any, req: TutorRequest, known: set[str], answ
                 for x in (item.get("lines") or [])[:20]:
                     text, ink = (x, "blue") if isinstance(x, str) else ((x.get("text"), x.get("ink")) if isinstance(x, dict) else ("", ""))
                     text = clean_math(text, 80)
+                    if text and _is_students_step(req, text, hide):
+                        continue  # a correct next line is the student's step to take, not a note
                     if text:
                         lines_in.append(text)
                         inks.append(ink if ink in ("blue", "red", "black") else "blue")
@@ -401,14 +445,16 @@ def _validate_actions(raw_actions: Any, req: TutorRequest, known: set[str], answ
 
 async def _ask_model(req: TutorRequest, known: set[str], check: CheckResponse | None) -> tuple[str, list[dict], str]:
     rid = str(req.context.requestId)
-    reply = await provider.generate(TUTOR_INSTRUCTIONS, _build_prompt(req, known, check), max_tokens=900, request_id=rid)
+    reply = await provider.generate(TUTOR_INSTRUCTIONS, _build_prompt(req, known, check), max_tokens=800 if wants_full_solution(req) else 600, request_id=rid)
     if reply.incomplete:
         raise ApiError("INVALID_MODEL_OUTPUT", "The tutor reply was cut off. Retry.", rid)
     try:
         obj = parse_json_object(reply.text)
     except ValueError:
         raise ApiError("INVALID_MODEL_OUTPUT", "The tutor reply could not be read. Retry.", rid)
-    explanation = clean_text(obj.get("explanation"), 600)
+    say, nxt = clean_text(obj.get("say"), 260), clean_text(obj.get("next"), 200)
+    explanation = " ".join(x for x in (say, nxt) if x) or clean_text(obj.get("explanation"), 400)
+    _DETAIL.set(clean_text(obj.get("detail"), 900) or None)
     if not explanation:
         raise ApiError("INVALID_MODEL_OUTPUT", "The tutor reply was empty. Retry.", rid)
     return explanation, obj.get("actions") or [], settings.model
@@ -434,8 +480,13 @@ async def tutor(req: TutorRequest) -> TutorResponse:
     anchor = req.current.regionId if req.current else (req.problem.regionId if req.problem else ctx.regionId)
 
     def done(explanation: str, actions: list, check=None, verified="none", model=None) -> TutorResponse:
+        detail = _DETAIL.get()
+        if detail and req.exam and not req.exam.reveal:
+            detail = _redact_value(detail, _final_value(req.exam.answer) or None)
+        elif detail and not wants_full_solution(req) and req.intent != "complete":
+            detail = _redact_answer(detail, _unique_solution(req.problem.text if req.problem else None))
         return TutorResponse(
-            context=ctx, explanation=explanation, actions=actions, check=check, verifiedBy=verified, model=model,
+            context=ctx, explanation=explanation, detail=detail, actions=actions, check=check, verifiedBy=verified, model=model,
             latencyMs=int((time.perf_counter() - started) * 1000),
         )
 
@@ -631,7 +682,7 @@ async def tutor(req: TutorRequest) -> TutorResponse:
     # ---- ask / hint / explain: model hint, validated actions
     if not req.problem and not req.current and not req.question.strip():
         raise ApiError("INVALID_INPUT", "Select some work or type a question first.", rid, retryable=False)
-    answer = _unique_solution(req.problem.text if req.problem else None)
+    answer = None if wants_full_solution(req) else _unique_solution(req.problem.text if req.problem else None)
     explanation, raw, model = await _ask_model(req, known, check)
     explanation = _redact_answer(explanation, answer)
     if req.exam and not req.exam.reveal and req.intent != "complete":

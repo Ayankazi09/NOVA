@@ -227,7 +227,8 @@ Action = Annotated[
 
 class TutorResponse(BaseModel):
     context: RequestContext
-    explanation: str
+    explanation: str  # short and focused: shown on the page and in the chat
+    detail: str | None = None  # a longer explanation, shown only when the student opens it
     actions: list[Action]
     check: CheckResponse | None = None
     verifiedBy: Literal["deterministic", "model", "none"] = "none"
