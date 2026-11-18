@@ -9,6 +9,8 @@ import re
 import time
 from dataclasses import dataclass
 
+import weakref
+
 import httpx
 
 from ..config import settings
@@ -17,7 +19,7 @@ from ..errors import ApiError
 log = logging.getLogger("nova.provider")
 
 # "responses" (default) or "chat" (OpenAI chat/completions with image_url parts)
-API_STYLE = os.environ.get("NOVA_API_STYLE", "responses")
+API_STYLE = os.environ.get("NOVA_API_STYLE", "chat")  # GLM is served on /chat/completions
 REASONING_OFF = os.environ.get("NOVA_REASONING_OFF", "1") == "1"
 
 
@@ -99,27 +101,31 @@ def _map_status(resp: httpx.Response, request_id: str | None) -> ApiError:
 
 class BharatCodeClient:
     def __init__(self) -> None:
-        self._client: httpx.AsyncClient | None = None
-        self._loop: object | None = None
+        self._clients: "weakref.WeakKeyDictionary[object, httpx.AsyncClient]" = weakref.WeakKeyDictionary()
 
     def _http(self) -> httpx.AsyncClient:
-        # Serverless hosts may run each request on a fresh event loop; a pooled connection made on an
-        # earlier loop then hangs until the timeout. Keep one client per running loop.
+        # Serverless hosts run requests on separate event loops at the same time and freeze the process between
+        # requests. A client shared across loops, or a pooled connection that died during a freeze, hangs until the
+        # timeout. So: one client per running loop, and never reuse an idle connection.
         import asyncio
 
         loop = asyncio.get_running_loop()
-        if self._client is None or self._loop is not loop:
-            self._loop = loop
-            self._client = httpx.AsyncClient(
+        client = self._clients.get(loop)
+        if client is None:
+            client = httpx.AsyncClient(
                 base_url=settings.base_url,
                 timeout=httpx.Timeout(settings.provider_timeout_s, connect=10),
-                limits=httpx.Limits(max_connections=4),
+                limits=httpx.Limits(max_connections=8, max_keepalive_connections=0),
             )
-        return self._client
+            self._clients[loop] = client
+        return client
 
     async def aclose(self) -> None:
-        if self._client is not None:
-            await self._client.aclose()
+        import asyncio
+
+        client = self._clients.pop(asyncio.get_running_loop(), None)
+        if client is not None:
+            await client.aclose()
 
     def _headers(self) -> dict:
         return {"Authorization": f"Bearer {settings.api_key}", "Content-Type": "application/json"}

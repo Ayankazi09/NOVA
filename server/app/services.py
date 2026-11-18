@@ -37,7 +37,7 @@ _action_adapter = TypeAdapter(Action)
 _CTRL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 
 # Two independent reads; disagreement becomes a clarification question instead of a silent guess.
-RECOGNIZE_VOTES = max(1, min(3, int(os.environ.get("NOVA_RECOGNIZE_VOTES", "2"))))
+RECOGNIZE_VOTES = max(1, min(3, int(os.environ.get("NOVA_RECOGNIZE_VOTES", "1"))))
 RECOGNIZE_GRACE_S = float(os.environ.get("NOVA_RECOGNIZE_GRACE_S", "3"))  # extra wait for the second vote
 RECOGNIZE_EFFORT = os.environ.get("NOVA_RECOGNIZE_EFFORT", "") or None  # e.g. "low" to let the model reason
 
@@ -651,7 +651,7 @@ async def solve_any(text: str, problem: str | None, diagram: str | None = None) 
     """Anything the exact engine can't do (functions, calculus, series, sets, ...): NOVA's maths model writes the worked solution."""
     user = ("A picture of the student's DIAGRAM (and the question beside it) is attached: read it carefully.\n" if diagram else "") + f"STUDENT LINE: {text}" + (f"\nPROBLEM THEY ARE WORKING ON: {problem}" if problem and problem != text else "")
     try:
-        reply = await provider.generate(SOLVE_ANY_INSTRUCTIONS, user, [diagram] if diagram else None, max_tokens=6000, effort="low")
+        reply = await provider.generate(SOLVE_ANY_INSTRUCTIONS, user, [diagram] if diagram else None, max_tokens=2500)
         obj = parse_json_object(reply.text)
     except Exception as e:  # never break the page over a bonus answer
         log.warning("solve_any failed: %s", type(e).__name__)
