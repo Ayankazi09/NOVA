@@ -4,7 +4,7 @@
 
 import { hashString, strokeBounds, union } from './geometry'
 import { shortId } from './ids'
-import type { CheckResult, Notebook, NotebookDoc, Page, Paper, PaperQuestion, PaperTest, Reading, Rect, Region, Stroke, TutorObject, Turn } from './types'
+import type { DocLine, CheckResult, Notebook, NotebookDoc, Page, Paper, PaperQuestion, PaperTest, Reading, Rect, Region, Stroke, TutorObject, Turn } from './types'
 import { SCHEMA_VERSION } from './types'
 
 export const PAGE_W = 1200
@@ -51,6 +51,7 @@ export type DocAction =
   | { type: 'recordStep'; pageId: string; problemId: string; regionId: string; text: string; status: string }
   | { type: 'setTest'; test: PaperTest }
   | { type: 'ensureSize'; pageId: string; width: number; height: number }
+  | { type: 'pageMeta'; pageId: string; bgState: Page['bgState'] | null; bgError?: string; docText?: DocLine[] }
   | { type: 'patchQuestion'; testId: string; questionId: string; patch: Partial<PaperQuestion> }
 
 export function newPage(notebookId: string, title: string, opts: Partial<Page> = {}): Page {
@@ -451,6 +452,18 @@ export function docReducer(state: DocState, action: DocAction): DocState {
       const page = state.doc.pages[action.pageId]
       if (!page || (action.width <= page.width && action.height <= page.height)) return state
       return touch(state, action.pageId, { ...page, width: Math.max(page.width, action.width), height: Math.max(page.height, action.height) })
+    }
+
+    case 'pageMeta': {
+      // an imported sheet finished (or failed) preparing: not a content edit (no revision bump, no undo step)
+      const page = state.doc.pages[action.pageId]
+      if (!page) return state
+      const next: Page = { ...page, ...(action.docText ? { docText: action.docText } : {}) }
+      if (action.bgState) next.bgState = action.bgState
+      else delete next.bgState
+      if (action.bgError) next.bgError = action.bgError
+      else delete next.bgError
+      return touch(state, action.pageId, next)
     }
 
     case 'setTest':

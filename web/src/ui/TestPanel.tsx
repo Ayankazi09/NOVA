@@ -55,6 +55,10 @@ export function TestPanel({ test, pages, busy, onGoto, onHelp, onReview, onFinis
         </div>
       )}
 
+      {!finished && test.readPageIds && test.readPageIds.length < test.pageIds.length && test.status !== 'reading' && (
+        <div className="test-note">NOVA reads each page's questions when you open that page.</div>
+      )}
+
       <ol className="q-list">
         {test.questions.map((q) => {
           const has = answered(q)

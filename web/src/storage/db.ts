@@ -115,7 +115,10 @@ export async function deleteNotebook(id: string): Promise<void> {
   const tx = db.transaction(['notebooks', 'index', 'assets'], 'readwrite')
   tx.objectStore('notebooks').delete(id)
   tx.objectStore('index').delete(id)
-  for (const p of Object.values(doc?.pages ?? {})) if (p.backgroundAssetId) tx.objectStore('assets').delete(p.backgroundAssetId)
+  for (const p of Object.values(doc?.pages ?? {})) {
+    if (p.backgroundAssetId) tx.objectStore('assets').delete(p.backgroundAssetId)
+    if (p.source) tx.objectStore('assets').delete(p.source.pdfAssetId) // the stored original PDF
+  }
   await done(tx)
 }
 

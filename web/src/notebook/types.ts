@@ -162,6 +162,7 @@ export interface PaperTest {
   questions: PaperQuestion[]
   progress: { done: number; total: number }
   failedPages?: number[] // page indexes that could not be read yet
+  readPageIds?: string[] // pages whose questions NOVA has read (each page is read when the student opens it)
   error?: string
   createdAt: number
   finishedAt?: number
@@ -179,6 +180,9 @@ export interface Page {
   selectionRevision: number
   backgroundAssetId?: string
   bg?: { w: number; h: number } // size of the imported sheet; the grid continues around it
+  bgState?: 'preparing' | 'failed' // imported sheet still being drawn, or drawing failed (absent = ready)
+  bgError?: string
+  source?: { pdfAssetId: string; index: number } // where an imported sheet comes from, to (re)draw it
   docText?: DocLine[]
   strokes: Stroke[]
   regions: Region[]

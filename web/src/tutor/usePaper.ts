@@ -1,15 +1,15 @@
 // Question-paper test mode: import a PDF, let NOVA read every question and build a verified answer key,
 // help like a friend while the student works (hints only, never the answer), then mark everything on the page.
 
-import { useCallback, useState, type Dispatch, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, useState, type Dispatch, type RefObject } from 'react'
 import { isTinyRegion, newPage, readingText, type DocAction, type DocState } from '../notebook/doc'
 import { inflate, union } from '../notebook/geometry'
 import { shortId, uuid } from '../notebook/ids'
 import type { Page, PaperQuestion, PaperTest, Rect, Region, TutorObject } from '../notebook/types'
 import { renderRegion } from '../recognition/render'
 import { putAsset } from '../storage/db'
-import { checksumBytes } from '../storage/backup'
-import { pageForModel, readPdf } from '../storage/pdf'
+import { MAX_PDF_PAGES, openPdf, pageForModel, pageSizes } from '../storage/pdf'
+import { cancelAll, enqueue, prioritise, queuedPageIds, rememberPdf, setPrepListener } from './paperPrep'
 import { compose } from '../handwriting/compose'
 import { getLibrary } from '../handwriting/library'
 import { placeInk } from '../handwriting/place'
@@ -68,6 +68,9 @@ function questionBounds(page: Page, lineIds: string[], bbox: number[], number: s
 
 export function usePaper(o: Options) {
   const [busy, setBusy] = useState<string | null>(null)
+  const importJob = useRef(0)
+  const reading = useRef<Promise<unknown>>(Promise.resolve()) // page readings run one after another
+  const readingPages = useRef(new Set<string>())
 
   const saveTest = (t: PaperTest) => o.dispatch({ type: 'setTest', test: t })
   const latest = (id: string) => doc(o).tests?.[id]
@@ -82,11 +85,12 @@ export function usePaper(o: Options) {
     for (const q of base.questions) if (!pageIds.includes(q.pageId)) byPage.set(q.pageId, [...(byPage.get(q.pageId) ?? []), q])
     const failed: number[] = []
     let done = 0
-    const total = pageIds.length
     const publish = (status: PaperTest['status']) => {
       const ordered = base.pageIds.flatMap((id) => byPage.get(id) ?? [])
       const failedPages = failed.slice().sort((x, y) => x - y)
-      saveTest({ ...base, questions: ordered, status, progress: { done, total }, failedPages, error: failedPages.length ? `Could not read page ${failedPages.map((i) => i + 1).join(', ')} (the model was too slow or busy).` : undefined })
+      const readPageIds = [...new Set([...(base.readPageIds ?? []), ...pageIds.filter((id) => byPage.has(id))])]
+      const progress = { done: readPageIds.length, total: base.pageIds.length }
+      saveTest({ ...base, questions: ordered, status, progress, readPageIds, failedPages, error: failedPages.length ? `Could not read page ${failedPages.map((i) => i + 1).join(', ')} (the model was too slow or busy).` : undefined })
     }
     publish('reading')
     const readOne = async (pageId: string) => {
@@ -132,9 +136,12 @@ export function usePaper(o: Options) {
     }
     await Promise.all([worker(), worker()])
     const n = base.pageIds.reduce((k, id) => k + (byPage.get(id)?.length ?? 0), 0)
-    publish(n ? 'ready' : 'failed')
+    const here = pageIds.reduce((k, id) => k + (byPage.get(id)?.length ?? 0), 0)
+    const unread = base.pageIds.some((id) => !pageIds.includes(id) && !(base.readPageIds ?? []).includes(id))
+    publish(n || unread ? 'ready' : 'failed')
     setBusy(null)
-    o.toast(n ? `NOVA found ${n} questions${failed.length ? ` (${failed.length} page${failed.length > 1 ? 's' : ''} still to retry)` : ''}. Answer on the page — circle the option or write the answer.` : 'NOVA could not find questions in this PDF.')
+    if (failed.length) o.toast(`NOVA could not read this page yet (the model was too slow or busy). Tap Retry in the test panel.`)
+    else o.toast(here ? `NOVA found ${here} question${here > 1 ? 's' : ''} on this page. Answer on the page — circle the option or write the answer.` : 'NOVA found no questions on this page.')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -146,35 +153,88 @@ export function usePaper(o: Options) {
   }, [analyze])
 
   const importPaper = useCallback(async (file: File) => {
+    const job = ++importJob.current
     try {
       setBusy('Opening the PDF…')
-      const pages = await readPdf(file, (i, n) => setBusy(`Opening page ${i} of ${n}…`))
-      if (!pages.length) throw new Error('This PDF has no pages.')
+      const data = new Uint8Array(await file.arrayBuffer())
+      const pdf = await openPdf(data)
+      const sizes = await pageSizes(pdf)
+      performance.mark('nova-pdf-parsed') // for import timing: file read + parsed + every page measured
+      if (job !== importJob.current) return null // a newer import started meanwhile: this one attaches nothing
+      if (!sizes.length) throw new Error('This PDF has no pages.')
+      const pdfAssetId = shortId('pdf')
+      rememberPdf(pdfAssetId, pdf)
+      // keep the original so pages can be (re)drawn after a reload; first page is drawn from memory meanwhile
+      const stored = putAsset({ id: pdfAssetId, mime: 'application/pdf', bytes: data.buffer as ArrayBuffer, width: 0, height: 0, checksum: `pdf:${data.byteLength}` })
       const nb = doc(o).notebook
       const title = file.name.replace(/\.pdf$/i, '').slice(0, 60) || 'Question paper'
       let after = o.currentPageId
-      const created: { pageId: string; image: Blob; lines: { id: string; text: string }[] }[] = []
-      for (const pg of pages) {
-        const bytes = await pg.image.arrayBuffer()
-        const assetId = shortId('as')
-        await putAsset({ id: assetId, mime: 'image/png', bytes, width: pg.imageW, height: pg.imageH, checksum: checksumBytes(bytes) })
-        const page = newPage(nb.id, `${title} · ${pg.index + 1}`, { width: pg.width + 1200, height: pg.height, backgroundAssetId: assetId, paper: 'squared', docText: pg.lines, bg: { w: pg.width, h: pg.height } })
+      const created: Page[] = []
+      for (const [index, sz] of sizes.entries()) {
+        const page = newPage(nb.id, `${title} · ${index + 1}`, {
+          width: sz.width + 1200, height: sz.height, backgroundAssetId: shortId('as'), paper: 'squared', docText: [], bg: { w: sz.width, h: sz.height },
+          bgState: 'preparing', source: { pdfAssetId, index },
+        })
         o.dispatch({ type: 'addPage', page, after })
         after = page.id
-        created.push({ pageId: page.id, image: pg.image, lines: pg.lines.map((l) => ({ id: l.id, text: l.text })) })
+        created.push(page)
       }
-      const test: PaperTest = { id: shortId('test'), title, status: 'reading', pageIds: created.map((c) => c.pageId), questions: [], progress: { done: 0, total: created.length }, createdAt: Date.now() }
+      const test: PaperTest = { id: shortId('test'), title, status: 'ready', pageIds: created.map((p) => p.id), questions: [], progress: { done: 0, total: created.length }, readPageIds: [], createdAt: Date.now() }
       saveTest(test)
-      o.openPage(created[0].pageId)
-      void analyze(test.id, created.map((c) => c.pageId))
+      prioritise(created[0].id)
+      enqueue(created.map((p) => ({ pageId: p.id, assetId: p.backgroundAssetId!, pdfAssetId, index: p.source!.index })))
+      o.openPage(created[0].id)
+      setBusy(null)
+      if (pdf.numPages > MAX_PDF_PAGES) o.toast(`Only the first ${MAX_PDF_PAGES} pages were imported.`)
+      void stored.catch(() => o.toast('This device could not save the PDF; pages that are still preparing may need importing again after a reload.'))
       return test.id
     } catch (e) {
-      setBusy(null)
+      if (job === importJob.current) setBusy(null)
       o.toast((e as Error).message || 'Could not open that PDF.')
       return null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [o.currentPageId])
+
+  // ---- background page preparation: results land on the page they belong to, if it still exists here
+  useEffect(() => {
+    setPrepListener((pageId, r) => {
+      if (!doc(o).pages[pageId]) return
+      if (r.ok) o.dispatch({ type: 'pageMeta', pageId, bgState: null, docText: r.lines })
+      else o.dispatch({ type: 'pageMeta', pageId, bgState: 'failed', bgError: r.error })
+    })
+    // reopened (or reloaded) during an import: carry on with the pages that are still preparing
+    const pending = Object.values(doc(o).pages).filter((p) => p.bgState === 'preparing' && p.source && p.backgroundAssetId && !queuedPageIds().includes(p.id))
+    if (pending.length) enqueue(pending.sort((a, b) => a.source!.index - b.source!.index).map((p) => ({ pageId: p.id, assetId: p.backgroundAssetId!, pdfAssetId: p.source!.pdfAssetId, index: p.source!.index })))
+    return () => {
+      setPrepListener(null)
+      cancelAll()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => prioritise(o.currentPageId), [o.currentPageId])
+
+  const retryPage = useCallback((pageId: string) => {
+    const p = doc(o).pages[pageId]
+    if (!p?.source || !p.backgroundAssetId) return
+    o.dispatch({ type: 'pageMeta', pageId, bgState: 'preparing' })
+    prioritise(pageId)
+    enqueue([{ pageId, assetId: p.backgroundAssetId, pdfAssetId: p.source.pdfAssetId, index: p.source.index }])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ---- NOVA reads a paper page's questions when the student opens it (and it is ready), not the whole paper up front
+  const cur = o.stateRef.current?.doc.pages[o.currentPageId]
+  const curTest = o.stateRef.current ? activeTestFor(o.stateRef.current, o.currentPageId) : undefined
+  const needsReading = !!cur && !!curTest && !cur.bgState && !(curTest.readPageIds ?? curTest.pageIds).includes(cur.id) && curTest.status !== 'grading' && curTest.status !== 'finished'
+  useEffect(() => {
+    if (!needsReading || !curTest || readingPages.current.has(o.currentPageId)) return
+    const pageId = o.currentPageId
+    readingPages.current.add(pageId)
+    reading.current = reading.current.then(() => analyze(curTest.id, [pageId])).finally(() => readingPages.current.delete(pageId))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsReading, o.currentPageId])
 
   const circle = (q: PaperQuestion, reason: string) => {
     const id = `circle:${q.id}:${Date.now()}`
@@ -314,5 +374,5 @@ export function usePaper(o: Options) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  return { busy, importPaper, help, review, finish, retryFailed }
+  return { busy, importPaper, help, review, finish, retryFailed, retryPage }
 }
