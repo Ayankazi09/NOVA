@@ -255,6 +255,12 @@ hr { border: 0; border-top: 1px solid var(--rule); margin: 6px 0; }
 .bubble.tutor { align-self: flex-start; background: var(--surface); border: 1px solid var(--rule); border-left: 3px solid var(--nova); border-radius: 4px 14px 14px 4px; color: #1b2a55; }
 .bubble.tutor.error { border-left-color: var(--red); color: var(--red); }
 .bubble.tutor.notice { border-left-color: #e9c46a; color: var(--ink-2); }
+.bubble-more { margin-top: 6px; font-size: 13.5px; }
+.bubble-more summary { cursor: pointer; color: var(--nova); font-weight: 500; list-style: none; }
+.bubble-more summary::-webkit-details-marker { display: none; }
+.bubble-more summary::before { content: '▸ '; }
+.bubble-more[open] summary::before { content: '▾ '; }
+.bubble-more > div { margin-top: 4px; color: var(--ink-2); }
 .bubble.thinking { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-2); }
 .dots { display: inline-flex; gap: 3px; }
 .dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--nova); animation: blink 1.2s infinite ease-in-out; }
@@ -377,6 +383,11 @@ hr { border: 0; border-top: 1px solid var(--rule); margin: 6px 0; }
 .q-verdict { font-weight: 600; }
 .q-verdict.correct { color: var(--green); } .q-verdict.incorrect { color: var(--red); } .q-verdict.unanswered { color: var(--ink-2); }
 .q-key { color: var(--ink-2); } .q-key b { font-family: var(--mono); font-weight: 500; color: var(--ink); }
+.prep-chip { position: absolute; z-index: 3; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 10px; background: #fff; border: 1px solid var(--rule); box-shadow: var(--shadow-1, 0 1px 3px rgba(0,0,0,.08)); font-size: 15px; color: var(--ink-2); pointer-events: auto; transform-origin: 0 0; }
+.prep-chip.failed { border-color: #ecc0b6; color: var(--red); }
+.prep-chip .spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--rule); border-top-color: var(--nova); animation: prep-spin .8s linear infinite; }
+@keyframes prep-spin { to { transform: rotate(360deg); } }
+.test-note { margin: 4px 14px 0; font-size: 12.5px; color: var(--ink-3); }
 .test-foot { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--rule); font-size: 12.5px; }
 .test-btn.active { background: var(--nova); color: #fff; }
 

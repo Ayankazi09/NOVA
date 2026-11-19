@@ -1,6 +1,6 @@
 import type { CheckResult, PlotData, TutorAction } from '../notebook/types'
 
-export const CLIENT_DEADLINE_MS = 85_000
+export const CLIENT_DEADLINE_MS = 118_000 // the server gives the model up to 110 s
 
 export interface RequestContext {
   requestId: string
@@ -128,6 +128,7 @@ export interface RecognizeResult {
 export interface TutorResult {
   context: RequestContext
   explanation: string
+  detail?: string | null
   actions: TutorAction[]
   check?: (Omit<CheckResult, 'againstProblemId' | 'problemText'> & { context: RequestContext }) | null
   verifiedBy: 'deterministic' | 'model' | 'none'

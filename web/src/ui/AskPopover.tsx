@@ -217,6 +217,12 @@ export function AskPanel({ docked, startWithMic, initialText, turns, status, abo
         {shown.map((t, i) => (
           <div key={i} className={`bubble ${t.role}`}>
             {t.text}
+            {t.detail && (
+              <details className="bubble-more">
+                <summary>Explain more</summary>
+                <div>{t.detail}</div>
+              </details>
+            )}
           </div>
         ))}
         {busy && <div className="bubble tutor thinking"><span className="dots"><i /><i /><i /></span>{status.message}</div>}

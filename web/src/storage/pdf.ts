@@ -1,5 +1,5 @@
-// PDF question papers -> notebook pages. Each page is rendered to an image (the page background)
-// and its text layer is kept as positioned lines, so questions can be located exactly.
+// PDF question papers -> notebook pages. Opening a PDF and measuring its pages is cheap; drawing a page's image is
+// the expensive part, so it is done one page at a time (see tutor/paperPrep.ts). No AI is involved here.
 
 import * as pdfjs from 'pdfjs-dist'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
@@ -9,18 +9,10 @@ pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
 
 export const MAX_PDF_PAGES = 20
 export const MAX_PDF_BYTES = 40 * 1024 * 1024
-const PAGE_W = 1200 // page units; height follows the PDF's aspect ratio
+export const PAGE_W = 1200 // page units; height follows the PDF's aspect ratio
 const RENDER_W = 1600 // pixels for the background image (sharp at normal zoom)
 
-export interface PdfPage {
-  index: number
-  width: number
-  height: number
-  image: Blob
-  imageW: number
-  imageH: number
-  lines: DocLine[]
-}
+export type PdfDoc = pdfjs.PDFDocumentProxy
 
 interface TextItem {
   str: string
@@ -64,19 +56,35 @@ function groupLines(items: TextItem[], vpH: number, s: number): DocLine[] {
   })
 }
 
-export async function readPdf(file: File, onPage?: (i: number, n: number) => void): Promise<PdfPage[]> {
-  if (file.size > MAX_PDF_BYTES) throw new Error('That PDF is larger than 40 MB.')
-  const data = new Uint8Array(await file.arrayBuffer())
-  const task = pdfjs.getDocument({ data })
-  const doc = await task.promise
+/** Parse the file (in pdf.js's worker). Throws a readable message for files that are not usable PDFs. */
+export async function openPdf(data: Uint8Array): Promise<PdfDoc> {
+  if (data.byteLength > MAX_PDF_BYTES) throw new Error('That PDF is larger than 40 MB.')
+  try {
+    return await pdfjs.getDocument({ data: data.slice() }).promise // pdf.js takes ownership of the buffer it is given
+  } catch (e) {
+    const name = (e as { name?: string })?.name
+    if (name === 'PasswordException') throw new Error('That PDF is password-protected. Remove the password and import it again.')
+    throw new Error('That file could not be opened as a PDF.')
+  }
+}
+
+/** Page sizes in page units, for every page (cheap: no drawing). */
+export async function pageSizes(doc: PdfDoc): Promise<{ width: number; height: number }[]> {
   const n = Math.min(doc.numPages, MAX_PDF_PAGES)
-  const out: PdfPage[] = []
-  for (let i = 1; i <= n; i++) {
-    onPage?.(i, n)
-    const page = await doc.getPage(i)
+  return Promise.all(
+    Array.from({ length: n }, async (_, i) => {
+      const vp = (await doc.getPage(i + 1)).getViewport({ scale: 1 })
+      return { width: PAGE_W, height: Math.round(vp.height * (PAGE_W / vp.width)) }
+    }),
+  )
+}
+
+/** Draw one page (index from 0) to a PNG for the notebook background, and read its text layer. */
+export async function renderPdfPage(doc: PdfDoc, index: number): Promise<{ image: Blob; imageW: number; imageH: number; lines: DocLine[] }> {
+  const page = await doc.getPage(index + 1)
+  try {
     const base = page.getViewport({ scale: 1 })
-    const scale = RENDER_W / base.width
-    const vp = page.getViewport({ scale })
+    const vp = page.getViewport({ scale: RENDER_W / base.width })
     const canvas = document.createElement('canvas')
     canvas.width = Math.round(vp.width)
     canvas.height = Math.round(vp.height)
@@ -84,15 +92,14 @@ export async function readPdf(file: File, onPage?: (i: number, n: number) => voi
     ctx.fillStyle = '#ffffff'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
     await page.render({ canvasContext: ctx, viewport: vp, canvas }).promise
-    const image = await new Promise<Blob>((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('Could not render the page.'))), 'image/png'))
+    const image = await new Promise<Blob>((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('Could not draw the page.'))), 'image/png'))
     const content = await page.getTextContent()
-    const unit = PAGE_W / base.width // PDF points -> page units
-    const lines = groupLines(content.items as TextItem[], base.height, unit)
-    out.push({ index: i - 1, width: PAGE_W, height: Math.round(base.height * unit), image, imageW: canvas.width, imageH: canvas.height, lines })
+    const lines = groupLines(content.items as TextItem[], base.height, PAGE_W / base.width)
+    canvas.width = canvas.height = 0 // free the bitmap now, not at the next GC (matters on phones)
+    return { image, imageW: Math.round(vp.width), imageH: Math.round(vp.height), lines }
+  } finally {
     page.cleanup()
   }
-  await task.destroy()
-  return out
 }
 
 /** A PNG of the page for the model: longest edge ≤ 1600 px and ≤ ~1 MB. */

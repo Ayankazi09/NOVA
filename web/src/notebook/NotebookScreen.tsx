@@ -234,7 +234,7 @@ export function NotebookScreen({ state, dispatch, settings, setSettings, saveSta
       cancelled = true
       if (url) URL.revokeObjectURL(url)
     }
-  }, [page.backgroundAssetId])
+  }, [page.backgroundAssetId, page.bgState])
 
   // ---- content changes -> invalidate + schedule reading (covers strokes, erase, undo, redo)
   const prevHashes = useRef<Map<string, string> | null>(null)
@@ -703,6 +703,15 @@ export function NotebookScreen({ state, dispatch, settings, setSettings, saveSta
           }}
           pageLayer={
             <>
+              {page.bgState && page.bg && (
+                <div className={`prep-chip ${page.bgState}`} style={{ left: 24, top: 24 }} role="status">
+                  {page.bgState === 'preparing' ? (
+                    <><span className="spin" aria-hidden="true" /> Preparing page… you can write already.</>
+                  ) : (
+                    <>Couldn't prepare this page{page.bgError ? `: ${page.bgError}` : '.'} <button className="link strong" onClick={() => paper.retryPage(page.id)}>Retry</button></>
+                  )}
+                </div>
+              )}
               {home && page.strokes.length === 0 && (
                 <div className="home-hint" style={{ left: 96, top: 170 }}>
                   <span className="hint-big">Write anything here.</span>

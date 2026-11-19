@@ -24,6 +24,9 @@ MAX_DEPTH = 12
 MAX_LITERAL = Fraction(10_000)
 
 
+_ASCII_DIGITS = "0123456789"
+
+
 class MathError(ValueError):
     """Input is outside the supported scope (not a learner error)."""
 
@@ -105,10 +108,10 @@ def tokenize(text: str, allowed_vars: frozenset[str]) -> list[Tok]:
         if c.isspace():
             i += 1
             continue
-        if c.isdigit() or (c == "." and i + 1 < len(s) and s[i + 1].isdigit()):
+        if (c in _ASCII_DIGITS) or (c == "." and i + 1 < len(s) and (s[i + 1] in _ASCII_DIGITS)):
             j = i
             seen_dot = False
-            while j < len(s) and (s[j].isdigit() or (s[j] == "." and not seen_dot)):
+            while j < len(s) and ((s[j] in _ASCII_DIGITS) or (s[j] == "." and not seen_dot)):
                 if s[j] == ".":
                     seen_dot = True
                 j += 1

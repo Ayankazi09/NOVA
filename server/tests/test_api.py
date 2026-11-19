@@ -287,6 +287,7 @@ def test_recognize_disagreement_becomes_clarification(monkeypatch):
             return ModelReply(text=next(replies), latency_ms=5, incomplete=False)
 
     use(monkeypatch, Two())
+    monkeypatch.setattr(services, "RECOGNIZE_VOTES", 2)  # two independent reads (NOVA_RECOGNIZE_VOTES=2)
     body = client.post("/api/v1/recognize", json={"context": ctx(), "regionPng": png(), "regionWidth": 1, "regionHeight": 1}).json()
     assert body["rawText"] == "2x + 3 = 14" and body["needsClarification"] and body["alternatives"] == ["2x + 8 = 14"]
 

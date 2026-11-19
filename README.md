@@ -44,7 +44,7 @@ and it works on phones, tablets and laptops.
 
 ## How it's built
 
-- **BharatCode** (`qwen-3.8-27b`) is NOVA's eyes and its professor: it reads every handwritten line (twice, and asks
+- **BharatCode** (`glm-5.3-flash`) is NOVA's eyes and its professor: it reads every handwritten line (twice, and asks
   *"Which did you write?"* when the two reads disagree, instead of marking a misread as your mistake), reads geometry
   diagrams, and writes beginner-friendly solutions for anything beyond the exact engine. Details in [`BharatCode.txt`](BharatCode.txt).
 - **Exact maths stays exact:** arithmetic and equations are solved by NOVA's own engine (fractions + SymPy) and verified.
